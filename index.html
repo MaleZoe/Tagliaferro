@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ÉLITE SPORT — Ropa Deportiva Premium</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <!-- Supabase JS (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body>
+
+<!-- OVERLAY -->
+<div class="overlay" id="overlay"></div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+  <span id="toast-msg">Producto agregado</span>
+</div>
+
+<!-- ═══ MODAL LOGIN / REGISTRO ═══ -->
+<div class="modal" id="auth-modal" role="dialog" aria-modal="true">
+  <button class="modal-close" id="auth-close" aria-label="Cerrar">
+    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+  <div class="auth-tabs">
+    <button class="auth-tab active" data-tab="login">Iniciar sesión</button>
+    <button class="auth-tab" data-tab="register">Crear cuenta</button>
+  </div>
+  <!-- LOGIN -->
+  <div class="auth-panel active" id="tab-login">
+    <div class="auth-header"><h2>Bienvenido de vuelta</h2><p>Ingresá a tu cuenta para ver tus pedidos</p></div>
+    <form class="auth-form" id="login-form" novalidate>
+      <div class="form-group">
+        <label for="login-email">Correo electrónico</label>
+        <input type="email" id="login-email" placeholder="tu@email.com" autocomplete="email" />
+        <span class="form-error" id="login-email-err"></span>
+      </div>
+      <div class="form-group">
+        <label for="login-pass">Contraseña</label>
+        <div class="input-wrap">
+          <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password" />
+          <button type="button" class="toggle-pass" aria-label="Ver">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <span class="form-error" id="login-pass-err"></span>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full" id="login-btn">INGRESAR</button>
+      <div class="auth-divider"><span>o</span></div>
+      <button type="button" class="btn-ghost" id="goto-orders-from-login" style="display:none">Ver mis pedidos →</button>
+    </form>
+  </div>
+  <!-- REGISTRO -->
+  <div class="auth-panel" id="tab-register">
+    <div class="auth-header"><h2>Crear cuenta</h2><p>Sumate y accedé a beneficios exclusivos</p></div>
+    <form class="auth-form" id="register-form" novalidate>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="reg-name">Nombre</label>
+          <input type="text" id="reg-name" placeholder="Juan" autocomplete="given-name" />
+          <span class="form-error" id="reg-name-err"></span>
+        </div>
+        <div class="form-group">
+          <label for="reg-lastname">Apellido</label>
+          <input type="text" id="reg-lastname" placeholder="Pérez" autocomplete="family-name" />
+          <span class="form-error" id="reg-lastname-err"></span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="reg-email">Correo electrónico</label>
+        <input type="email" id="reg-email" placeholder="tu@email.com" autocomplete="email" />
+        <span class="form-error" id="reg-email-err"></span>
+      </div>
+      <div class="form-group">
+        <label for="reg-pass">Contraseña</label>
+        <div class="input-wrap">
+          <input type="password" id="reg-pass" placeholder="Mínimo 6 caracteres" autocomplete="new-password" />
+          <button type="button" class="toggle-pass" aria-label="Ver">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <span class="form-error" id="reg-pass-err"></span>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full" id="register-btn">CREAR CUENTA</button>
+    </form>
+  </div>
+</div>
+
+<!-- ═══ PANEL MIS PEDIDOS ═══ -->
+<aside class="cart-panel" id="orders-panel" role="dialog" aria-modal="true" aria-label="Mis pedidos">
+  <div class="cart-header">
+    <h2>Mis pedidos</h2>
+    <button class="panel-close" id="orders-close" aria-label="Cerrar">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="cart-body" id="orders-body">
+    <div class="cart-empty" id="orders-empty" style="display:none">
+      <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="m8 21 8-4M16 21l-8-4"/></svg>
+      <p>Todavía no hiciste pedidos</p>
+      <button class="btn btn-primary" id="orders-shop-cta">IR A LA TIENDA</button>
+    </div>
+    <div class="orders-loading" id="orders-loading">
+      <div class="spinner"></div><p>Cargando pedidos...</p>
+    </div>
+    <ul class="orders-list" id="orders-list"></ul>
+  </div>
+</aside>
+
+<!-- ═══ PANEL CARRITO ═══ -->
+<aside class="cart-panel" id="cart-panel" role="dialog" aria-modal="true" aria-label="Carrito">
+  <div class="cart-header">
+    <h2>Mi carrito <span class="cart-count-label" id="cart-count-label">(0)</span></h2>
+    <button class="panel-close" id="cart-close" aria-label="Cerrar">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="cart-body" id="cart-body">
+    <div class="cart-empty" id="cart-empty">
+      <svg width="56" height="56" fill="none" stroke="currentColor" stroke-width="1" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+      <p>Tu carrito está vacío</p>
+      <button class="btn btn-primary" id="cart-empty-cta">VER PRODUCTOS</button>
+    </div>
+    <ul class="cart-items" id="cart-items"></ul>
+  </div>
+  <div class="cart-footer" id="cart-footer" style="display:none">
+    <div class="cart-subtotal"><span>Subtotal</span><span id="cart-subtotal-val">$0</span></div>
+    <div class="cart-shipping"><span>Envío</span><span id="cart-shipping-val">Gratis</span></div>
+    <div class="cart-total"><span>Total</span><span id="cart-total-val">$0</span></div>
+    <button class="btn btn-primary btn-full" id="checkout-btn">FINALIZAR COMPRA</button>
+    <button class="btn-ghost" id="clear-cart-btn">Vaciar carrito</button>
+  </div>
+</aside>
+
+<!-- ═══ MODAL PRODUCTO ═══ -->
+<div class="modal modal-product" id="product-modal" role="dialog" aria-modal="true">
+  <button class="modal-close" id="product-close" aria-label="Cerrar">
+    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+  <div class="product-modal-inner">
+    <div class="product-modal-img" id="pm-img"></div>
+    <div class="product-modal-info">
+      <p class="product-modal-sport" id="pm-sport"></p>
+      <h2 class="product-modal-name" id="pm-name"></h2>
+      <p class="product-modal-desc" id="pm-desc"></p>
+      <div class="product-modal-price-wrap">
+        <span class="product-modal-price" id="pm-price"></span>
+        <span class="product-modal-old" id="pm-old"></span>
+      </div>
+      <div class="product-modal-sizes">
+        <p class="size-label">Talle</p>
+        <div class="size-options" id="pm-sizes"></div>
+      </div>
+      <div class="product-modal-qty">
+        <p class="qty-label">Cantidad</p>
+        <div class="qty-control">
+          <button class="qty-btn" id="pm-qty-minus">−</button>
+          <span id="pm-qty-val">1</span>
+          <button class="qty-btn" id="pm-qty-plus">+</button>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-full" id="pm-add-btn">AGREGAR AL CARRITO</button>
+      <div class="product-modal-meta">
+        <span><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Calidad certificada</span>
+        <span><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg> Envío gratis +$50.000</span>
+        <span><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg> Devolución 14 días</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL CHECKOUT ═══ -->
+<div class="modal modal-checkout" id="checkout-modal" role="dialog" aria-modal="true">
+  <button class="modal-close" id="checkout-close" aria-label="Cerrar">
+    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+  <div id="checkout-step-1">
+    <h2 class="checkout-title">Finalizar compra</h2>
+    <div class="checkout-grid">
+      <div class="checkout-form-col">
+        <h3 class="checkout-section-title">Datos de envío</h3>
+        <form class="checkout-form" id="checkout-form" novalidate>
+          <div class="form-row">
+            <div class="form-group"><label>Nombre</label><input type="text" id="co-name" placeholder="Juan" /></div>
+            <div class="form-group"><label>Apellido</label><input type="text" id="co-lastname" placeholder="Pérez" /></div>
+          </div>
+          <div class="form-group"><label>Dirección</label><input type="text" id="co-address" placeholder="Av. Corrientes 1234" /></div>
+          <div class="form-row">
+            <div class="form-group"><label>Ciudad</label><input type="text" id="co-city" placeholder="Buenos Aires" /></div>
+            <div class="form-group"><label>Código Postal</label><input type="text" id="co-cp" placeholder="C1043" /></div>
+          </div>
+          <div class="form-group"><label>Teléfono</label><input type="tel" id="co-phone" placeholder="+54 11 1234-5678" /></div>
+          <button type="submit" class="btn btn-primary btn-full" id="co-submit-btn">PAGAR CON MERCADO PAGO</button>
+          <p class="auth-demo-note" id="co-error-msg" style="color:#c0392b;display:none"></p>
+        </form>
+      </div>
+      <div class="checkout-summary-col">
+        <h3 class="checkout-section-title">Resumen</h3>
+        <ul class="checkout-items" id="checkout-items-list"></ul>
+        <div class="checkout-totals">
+          <div class="checkout-total-row"><span>Subtotal</span><span id="co-subtotal"></span></div>
+          <div class="checkout-total-row"><span>Envío</span><span id="co-envio"></span></div>
+          <div class="checkout-total-row checkout-total-row--total"><span>Total</span><span id="co-total"></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Pantalla de éxito (ya redirige a MP, esta es el fallback pendiente) -->
+  <div id="checkout-step-2" style="display:none">
+    <div class="checkout-success">
+      <div class="checkout-success-icon">
+        <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <h2>¡Pedido creado!</h2>
+      <p>Serás redirigido a Mercado Pago para completar el pago.</p>
+      <p class="order-number">Orden #<span id="order-number"></span></p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PANEL BÚSQUEDA ═══ -->
+<div class="search-panel" id="search-panel">
+  <div class="search-panel-inner">
+    <input type="search" id="search-input" placeholder="Buscar productos, deportes..." autocomplete="off" />
+    <button class="search-close" id="search-close">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="search-results" id="search-results"></div>
+</div>
+
+<!-- ═══ MENÚ MÓVIL ═══ -->
+<div class="mobile-menu" id="mobile-menu">
+  <button class="panel-close" id="mobile-menu-close">
+    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+  <nav class="mobile-nav">
+    <a href="#deportes"    class="mobile-nav-link">Deportes</a>
+    <a href="#colecciones" class="mobile-nav-link">Colecciones</a>
+    <a href="#novedades"   class="mobile-nav-link">Novedades</a>
+    <a href="#nosotros"    class="mobile-nav-link">Nosotros</a>
+    <hr class="mobile-nav-divider" />
+    <a href="#" class="mobile-nav-link" id="mobile-login-btn">Mi cuenta</a>
+    <a href="#" class="mobile-nav-link" id="mobile-orders-btn" style="display:none">Mis pedidos</a>
+  </nav>
+</div>
+
+<!-- ═══ ANNOUNCEMENT BAR ═══ -->
+<div class="announcement-bar" id="ann-bar">
+  <button class="ann-arrow" id="ann-prev">&#8592;</button>
+  <p id="ann-text">ENVÍOS GRATUITOS EN COMPRAS SUPERIORES A $50.000 &nbsp;|&nbsp; DEVOLUCIONES SIN CARGO</p>
+  <button class="ann-arrow" id="ann-next">&#8594;</button>
+  <button class="ann-close" id="ann-close">×</button>
+</div>
+
+<!-- ═══ HEADER ═══ -->
+<header class="header" id="header">
+  <button class="hamburger" id="hamburger"><span></span><span></span><span></span></button>
+  <nav class="nav-left">
+    <a href="#deportes">DEPORTES</a>
+    <a href="#colecciones">COLECCIONES</a>
+    <a href="#novedades">NOVEDADES</a>
+    <a href="#nosotros">NOSOTROS</a>
+  </nav>
+  <a href="#" class="logo" id="logo-home">ÉLITE SPORT</a>
+  <div class="nav-right">
+    <button class="nav-icon-btn" id="search-btn" aria-label="Buscar">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    </button>
+    <!-- Cuenta: muestra nombre si logueado, abre login si no -->
+    <div class="account-menu-wrap">
+      <button class="nav-icon-btn" id="account-btn" aria-label="Mi cuenta">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span class="user-name-label" id="user-name-label" style="display:none"></span>
+      </button>
+      <!-- Dropdown cuando está logueado -->
+      <div class="account-dropdown" id="account-dropdown" style="display:none">
+        <button id="dd-orders">Mis pedidos</button>
+        <button id="dd-logout">Cerrar sesión</button>
+      </div>
+    </div>
+    <button class="nav-icon-btn cart-icon" id="cart-btn" aria-label="Carrito">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+      <span class="cart-badge" id="cart-badge">0</span>
+    </button>
+  </div>
+</header>
+
+<!-- ═══ HERO ═══ -->
+<section class="hero" id="hero">
+  <div class="hero-content">
+    <p class="hero-eyebrow">COLECCIÓN OTOÑO / INVIERNO 2026</p>
+    <h1 class="hero-title">ELEGANCIA<br>EN CADA<br>MOVIMIENTO</h1>
+    <p class="hero-subtitle">Donde el estilo se encuentra con el rendimiento</p>
+    <div class="hero-actions">
+      <a href="#novedades" class="btn btn-primary">VER COLECCIÓN</a>
+      <a href="#deportes"  class="btn btn-outline-dark">EXPLORAR DEPORTES</a>
+    </div>
+  </div>
+  <div class="hero-image">
+    <div class="hero-img-placeholder">
+      <div class="hero-sport-badge">NUEVA TEMPORADA</div>
+      <div class="hero-deco-circle"></div>
+    </div>
+  </div>
+  <div class="hero-indicators">
+    <span class="indicator active"></span>
+    <span class="indicator"></span>
+    <span class="indicator"></span>
+  </div>
+</section>
+
+<!-- ═══ TRUST BADGES ═══ -->
+<section class="trust-badges">
+  <div class="badge-item"><svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg><div><strong>Envío Gratis</strong><span>En compras desde $50.000</span></div></div>
+  <div class="badge-item"><svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><div><strong>Devoluciones</strong><span>14 días sin preguntas</span></div></div>
+  <div class="badge-item"><svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><div><strong>Calidad Premium</strong><span>Materiales certificados</span></div></div>
+  <div class="badge-item"><svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.73 16a2 2 0 0 1 .27.92z"/></svg><div><strong>Soporte 24/7</strong><span>Siempre a tu disposición</span></div></div>
+</section>
+
+<!-- ═══ DEPORTES ═══ -->
+<section class="sports-section" id="deportes">
+  <div class="section-header">
+    <h2 class="section-title">NUESTROS DEPORTES</h2>
+    <p class="section-subtitle">Equipamiento especializado para cada disciplina</p>
+  </div>
+  <div class="sports-grid">
+    <div class="sport-card" data-sport="tenis">
+      <div class="sport-card__img sport-img-tenis" style="background-image:url('img/sports/tenis.jpg')"></div>
+      <div class="sport-card__overlay"><span class="sport-card__tag">RAQUETA</span><h3>TENIS</h3><p>Precisión y velocidad en cada golpe</p><span class="sport-link">EXPLORAR →</span></div>
+    </div>
+    <div class="sport-card" data-sport="golf">
+      <div class="sport-card__img sport-img-golf" style="background-image:url('img/sports/golf.jpg')"></div>
+      <div class="sport-card__overlay"><span class="sport-card__tag">CAMPO</span><h3>GOLF</h3><p>Elegancia y concentración</p><span class="sport-link">EXPLORAR →</span></div>
+    </div>
+    <div class="sport-card" data-sport="equitacion">
+      <div class="sport-card__img sport-img-equitacion" style="background-image:url('img/sports/equitacion.jpg')"></div>
+      <div class="sport-card__overlay"><span class="sport-card__tag">ECUESTRE</span><h3>EQUITACIÓN</h3><p>Tradición y sofisticación</p><span class="sport-link">EXPLORAR →</span></div>
+    </div>
+    <div class="sport-card" data-sport="natacion">
+      <div class="sport-card__img sport-img-natacion" style="background-image:url('img/sports/natacion.jpg')"></div>
+      <div class="sport-card__overlay"><span class="sport-card__tag">ACUÁTICO</span><h3>NATACIÓN</h3><p>Libertad en el agua</p><span class="sport-link">EXPLORAR →</span></div>
+    </div>
+    <div class="sport-card" data-sport="remo">
+      <div class="sport-card__img sport-img-remo" style="background-image:url('img/sports/remo.jpg')"></div>
+      <div class="sport-card__overlay"><span class="sport-card__tag">ACUÁTICO</span><h3>REMO</h3><p>Potencia y ritmo</p><span class="sport-link">EXPLORAR →</span></div>
+    </div>
+    <div class="sport-card" data-sport="hockey">
+      <div class="sport-card__img sport-img-hockey" style="background-image:url('img/sports/hockey.jpg')"></div>
+      <div class="sport-card__overlay"><span class="sport-card__tag">EQUIPO</span><h3>HOCKEY</h3><p>Velocidad y precisión</p><span class="sport-link">EXPLORAR →</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ COLECCIONES ═══ -->
+<section class="collections-section" id="colecciones">
+  <div class="section-header">
+    <h2 class="section-title">COLECCIONES DESTACADAS</h2>
+    <p class="section-subtitle">Diseñadas para quienes no hacen concesiones</p>
+  </div>
+  <div class="collections-grid">
+    <div class="collection-card">
+      <div class="collection-img coll-img-mujer">
+        <img src="img/Golf/05_vestido_polo_azul.jpg" alt="Colección Mujer" loading="lazy" />
+      </div>
+      <div class="collection-info"><div><h3>MUJER</h3><p>Colección femenina</p></div><a href="#novedades" class="btn btn-sm">Ver todo</a></div>
+    </div>
+    <div class="collection-card">
+      <div class="collection-img coll-img-hombre">
+        <img src="img/Golf/04_conjunto_campera_pantalon.jpg" alt="Colección Hombre" loading="lazy" />
+      </div>
+      <div class="collection-info"><div><h3>HOMBRE</h3><p>Colección masculina</p></div><a href="#novedades" class="btn btn-sm">Ver todo</a></div>
+    </div>
+    <div class="collection-card">
+      <div class="collection-img coll-img-accesorios">
+        <img src="img/Equitacion/08_casco_blanco.jpg" alt="Accesorios" loading="lazy" />
+      </div>
+      <div class="collection-info"><div><h3>ACCESORIOS</h3><p>Completa tu look</p></div><a href="#novedades" class="btn btn-sm">Ver todo</a></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ NOVEDADES ═══ -->
+<section class="products-section" id="novedades">
+  <div class="products-header">
+    <h2 class="section-title">NOVEDADES</h2>
+    <a href="#" class="view-all" id="show-all-products">VER TODO →</a>
+  </div>
+  <div class="filter-bar">
+    <button class="filter-btn active" data-filter="all">Todos</button>
+    <button class="filter-btn" data-filter="tenis">Tenis</button>
+    <button class="filter-btn" data-filter="golf">Golf</button>
+    <button class="filter-btn" data-filter="equitacion">Equitación</button>
+    <button class="filter-btn" data-filter="natacion">Natación</button>
+    <button class="filter-btn" data-filter="remo">Remo</button>
+    <button class="filter-btn" data-filter="hockey">Hockey</button>
+  </div>
+  <div class="products-grid" id="products-grid">
+    <div class="products-loading"><div class="spinner"></div><p>Cargando catálogo...</p></div>
+  </div>
+  <div class="products-load-more" id="load-more-wrap" style="display:none">
+    <button class="btn btn-outline-dark" id="load-more-btn">CARGAR MÁS</button>
+  </div>
+</section>
+
+<!-- ═══ BRAND BANNER ═══ -->
+<section class="brand-banner">
+  <div class="brand-banner__content">
+    <p class="brand-banner__eyebrow">NUESTRA FILOSOFÍA</p>
+    <h2>EL DEPORTE ES<br>UN ESTILO DE VIDA</h2>
+    <p class="brand-banner__text">En Élite Sport creemos que la ropa que usás debe estar a la altura de tu compromiso. Cada prenda es diseñada con materiales de primera calidad.</p>
+    <a href="#nosotros" class="btn btn-light">CONOCER MÁS</a>
+  </div>
+</section>
+
+<!-- ═══ TECNOLOGÍA ═══ -->
+<section class="tech-section">
+  <div class="section-header">
+    <h2 class="section-title">TECNOLOGÍA EN CADA PRENDA</h2>
+    <p class="section-subtitle">Materiales de última generación para el máximo rendimiento</p>
+  </div>
+  <div class="tech-grid">
+    <div class="tech-item"><div class="tech-icon"><svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.3" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></div><h4>DRY-TECH</h4><p>Tejido de alta transpiración que evacúa la humedad</p></div>
+    <div class="tech-item"><div class="tech-icon"><svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.3" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><h4>FLEX-MOTION</h4><p>Elasticidad cuádruple para libertad total de movimiento</p></div>
+    <div class="tech-item"><div class="tech-icon"><svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.3" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg></div><h4>ULTRA-LIGHT</h4><p>Nuestras prendas son casi imperceptibles</p></div>
+    <div class="tech-item"><div class="tech-icon"><svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.3" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v3m0 12v3M3 12h3m12 0h3"/></svg></div><h4>SUN-GUARD</h4><p>Protección UV+50 integrada en la tela</p></div>
+    <div class="tech-item"><div class="tech-icon"><svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.3" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></div><h4>ECO-FABRIC</h4><p>Materiales reciclados y sostenibles</p></div>
+    <div class="tech-item"><div class="tech-icon"><svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.3" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div><h4>COMFORT-FIT</h4><p>Costuras planas ergonómicas</p></div>
+  </div>
+</section>
+
+<!-- ═══ MEMBERSHIP ═══ -->
+<section class="membership-section">
+  <div class="membership-card">
+    <div class="membership-left">
+      <div class="membership-card-visual">
+        <p class="card-label">ÉLITE SPORT CLUB</p>
+        <p class="card-number">•••• •••• •••• 2026</p>
+      </div>
+    </div>
+    <div class="membership-right">
+      <p class="membership-eyebrow">ÚNETE AL CLUB</p>
+      <h2>ÉLITE SPORT CLUB</h2>
+      <ul class="membership-benefits">
+        <li><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> 5% de descuento en cada compra</li>
+        <li><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Acceso anticipado a nuevas colecciones</li>
+        <li><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Beneficios exclusivos y sorteos</li>
+        <li><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Envío gratis en todos tus pedidos</li>
+      </ul>
+      <button class="btn btn-primary" id="join-club-btn">HACERME SOCIO</button>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ NOSOTROS ═══ -->
+<section class="about-section" id="nosotros">
+  <div class="about-text">
+    <p class="section-eyebrow">QUIÉNES SOMOS</p>
+    <h2 class="section-title">MÁS QUE UNA<br>TIENDA DE ROPA</h2>
+    <p>Somos una comunidad de atletas y apasionados del deporte. Desde 2010 vestimos a los mejores deportistas del país con indumentaria de calidad premium.</p>
+    <p>Trabajamos con marcas líderes del mundo y desarrollamos líneas propias diseñadas específicamente para cada disciplina deportiva.</p>
+    <a href="#" class="btn btn-primary">NUESTRA HISTORIA</a>
+  </div>
+  <div class="about-stats">
+    <div class="stat-item"><span class="stat-number">15+</span><span class="stat-label">Años de experiencia</span></div>
+    <div class="stat-item"><span class="stat-number">11</span><span class="stat-label">Deportes cubiertos</span></div>
+    <div class="stat-item"><span class="stat-number">500+</span><span class="stat-label">Productos disponibles</span></div>
+    <div class="stat-item"><span class="stat-number">50k+</span><span class="stat-label">Clientes satisfechos</span></div>
+  </div>
+</section>
+
+<!-- ═══ FOOTER ═══ -->
+<footer class="footer">
+  <div class="footer-top">
+    <div class="footer-brand">
+      <h3 class="footer-logo">ÉLITE SPORT</h3>
+      <p>Indumentaria deportiva premium para quienes viven el deporte con pasión y dedicación.</p>
+      <div class="social-links">
+        <a href="#" aria-label="Instagram"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg></a>
+        <a href="#" aria-label="Facebook"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg></a>
+        <a href="#" aria-label="TikTok"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"/></svg></a>
+      </div>
+    </div>
+    <div class="footer-col"><h4>CATÁLOGO</h4><ul><li><a href="#">Tenis</a></li><li><a href="#">Golf</a></li><li><a href="#">Equitación</a></li><li><a href="#">Rugby</a></li><li><a href="#">Natación</a></li><li><a href="#">Remo</a></li></ul></div>
+    <div class="footer-col"><h4>MÁS DEPORTES</h4><ul><li><a href="#">Hockey</a></li><li><a href="#">Pádel</a></li><li><a href="#">Polo</a></li><li><a href="#">Pilates / Yoga</a></li><li><a href="#">Gimnasio</a></li></ul></div>
+    <div class="footer-col"><h4>AYUDA</h4><ul><li><a href="#" id="footer-login-link">Mi cuenta</a></li><li><a href="#" id="footer-orders-link" style="display:none">Mis pedidos</a></li><li><a href="#">Guía de talles</a></li><li><a href="#">Envíos</a></li><li><a href="#">Devoluciones</a></li><li><a href="#">Contacto</a></li></ul></div>
+    <div class="footer-col"><h4>CONTACTO</h4><ul class="contact-list"><li><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.62 3.35a2 2 0 0 1 1.99-2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.9a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.73 16a2 2 0 0 1 .27.92z"/></svg> +54 11 4567-8900</li><li><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> hola@elitesport.com.ar</li><li><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> Av. del Libertador 1234, CABA</li></ul></div>
+  </div>
+  <div class="footer-bottom">
+    <p>© 2026 Élite Sport. Todos los derechos reservados.</p>
+    <div class="footer-legal"><a href="#">Política de privacidad</a><a href="#">Términos y condiciones</a></div>
+  </div>
+</footer>
+
+<!-- config.js PRIMERO (define supabaseClient y API_URL), luego script.js -->
+<script src="config.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

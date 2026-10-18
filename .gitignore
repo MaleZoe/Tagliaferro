@@ -1,0 +1,17 @@
+# Entornos y secretos
+.env
+backend/.env
+*.env
+
+# Dependencias
+node_modules/
+backend/node_modules/
+
+# Archivos de sistema y logs
+*.log
+.DS_Store
+Thumbs.db
+
+# Temporales de desarrollo
+crop_sports.ps1
+upscale_sports.ps1
