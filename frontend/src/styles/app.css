@@ -1,0 +1,123 @@
+/* Mantiene la identidad original y limita estos estilos a los componentes React nuevos. */
+.react-scrim { position: fixed; inset: 0; z-index: 1000; background: rgba(15,26,37,.55); display: flex; align-items: center; justify-content: center; padding: 20px; }
+.react-modal { width: min(760px, 100%); max-height: 90vh; overflow: auto; background: white; border-radius: 8px; padding: 28px; display: grid; grid-template-columns: minmax(180px, .9fr) 1.1fr; gap: 28px; position: relative; }
+.react-modal > img { width: 100%; max-height: 440px; object-fit: contain; background: var(--cream); }
+.react-modal h2 { color: var(--navy); }
+.react-modal-close { position: absolute; right: 12px; top: 8px; border: 0; background: transparent; font-size: 28px; cursor: pointer; }
+.react-sizes { border: 0; padding: 16px 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.react-sizes legend { width: 100%; padding-bottom: 8px; font-weight: 600; }
+.react-sizes button { min-width: 42px; height: 40px; border: 1px solid var(--light); background: white; cursor: pointer; }
+.react-sizes button.selected { border-color: var(--navy); background: var(--navy); color: white; }
+.react-sizes button:disabled { opacity: .35; text-decoration: line-through; cursor: not-allowed; }
+.react-cart-panel { margin-left: auto; height: 100%; width: min(440px, 100%); background: white; padding: 24px; overflow: auto; }
+.react-scrim:has(.react-cart-panel) { padding: 0; justify-content: flex-end; }
+.react-cart-lines { list-style: none; padding: 0; display: grid; gap: 18px; }
+.react-cart-lines li { display: grid; grid-template-columns: 72px 1fr; gap: 14px; align-items: start; }
+.react-cart-lines img { width: 72px; height: 80px; object-fit: contain; background: var(--cream); }
+.react-cart-lines small, .react-cart-total small { display: block; margin-top: 6px; color: var(--mid); }
+.react-cart-total { border-top: 1px solid var(--light); padding: 18px 0; display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.react-cart-total small { grid-column: 1 / -1; }
+.react-remove { color: #8a3e3e; text-decoration: underline; font-size: .75rem; margin-left: 10px; }
+.react-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 1100; opacity: 1; }
+.react-form-dialog { width: min(520px, 100%); max-height: 92vh; overflow: auto; position: relative; padding: 34px; background: #fff; border-radius: 8px; box-shadow: var(--shadow-lg); }
+.react-form-dialog h2 { color: var(--navy); margin: 0 32px 22px 0; }
+.react-form-dialog form { display: grid; gap: 14px; }
+.react-form-dialog label { display: grid; gap: 6px; color: var(--navy); font-size: .85rem; }
+.react-form-dialog input { min-width: 0; width: 100%; border: 1px solid var(--light); border-radius: 3px; padding: 11px 12px; font: inherit; }
+.react-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.react-form-error, .react-form-success { padding: 10px 12px; background: #fff2f0; color: #9b2c25; font-size: .84rem; }
+.react-form-success { background: #edf8f1; color: #19613a; }
+.react-auth-links { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding-top: 18px; }
+.react-auth-links button { color: var(--steel); text-decoration: underline; font-size: .8rem; }
+.react-checkout-dialog { width: min(640px, 100%); }
+.react-checkout-note { margin-top: -10px; color: var(--mid); font-size: .82rem; }
+.react-orders-panel { width: min(560px, 100%); height: 100%; overflow-y: auto; margin-left: auto; padding: 24px; background: white; }
+.react-orders-list { list-style: none; display: grid; gap: 16px; padding: 16px 0; }
+.react-orders-list .order-card-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.react-orders-list .order-badge { background: var(--cream); color: var(--navy); }
+.react-orders-list .order-card-footer { display: flex; justify-content: space-between; padding: 12px 16px; border-top: 1px solid var(--light); }
+.react-scrim:has(.react-orders-panel) { padding: 0; justify-content: flex-end; }
+.staff-page { max-width: 1240px; margin: 0 auto; padding: 48px 28px 80px; color: var(--navy); }
+.staff-page-heading { display: flex; justify-content: space-between; align-items: end; margin-bottom: 24px; }
+.staff-page h1 { margin: 4px 0 8px; font-size: clamp(2rem, 4vw, 3rem); }
+.staff-page h2 { font-size: 1.15rem; margin: 0 0 18px; }
+.staff-search { display: grid; gap: 6px; max-width: 420px; margin-bottom: 18px; font-size: .85rem; }
+.staff-search input, .staff-form input, .staff-form select, .staff-card select { border: 1px solid var(--light); border-radius: 3px; padding: 11px 12px; font: inherit; }
+.staff-table-wrap { width: 100%; overflow-x: auto; }
+.staff-table { width: 100%; border-collapse: collapse; background: white; font-size: .86rem; }
+.staff-table th, .staff-table td { padding: 12px 14px; border-bottom: 1px solid var(--light); text-align: left; white-space: nowrap; }
+.staff-table th { background: var(--cream); font-weight: 600; }
+.minimum-control, .sale-actions { display: flex; align-items: center; gap: 6px; }
+.minimum-control input { width: 64px; padding: 6px; border: 1px solid var(--light); }
+.minimum-control button, .sale-actions button { padding: 6px 8px; color: var(--steel); text-decoration: underline; }
+.staff-empty { padding: 20px 0; color: var(--mid); }
+.staff-card { margin-top: 26px; padding: 24px; border: 1px solid var(--light); border-radius: 6px; background: white; }
+.staff-form { display: grid; grid-template-columns: repeat(3, minmax(150px, 1fr)); align-items: end; gap: 14px; }
+.staff-form label, .staff-card > label { display: grid; gap: 6px; font-size: .84rem; }
+.staff-movements { list-style: none; padding: 0; margin: 0; display: grid; }
+.staff-movements li { display: grid; gap: 4px; padding: 13px 0; border-bottom: 1px solid var(--light); font-size: .85rem; }
+.staff-movements span, .staff-movements small { color: var(--mid); }
+.pos-layout { display: grid; grid-template-columns: 1.25fr .75fr; gap: 20px; align-items: start; }
+.pos-products { display: grid; }
+.pos-products article { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--light); }
+.pos-products article div { display: grid; gap: 3px; }
+.pos-products article small { color: var(--mid); }
+.pos-products article span { font-size: .86rem; }
+.pos-products .btn { min-width: 94px; }
+.pos-cart { list-style: none; margin: 0; padding: 0; }
+.pos-cart li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--light); }
+.pos-cart li > div:first-child { display: grid; gap: 4px; }
+.pos-cart small { color: var(--mid); }
+.staff-card > label { margin: 16px 0; }
+.pos-total { display: flex; justify-content: space-between; padding: 16px 0; border-top: 1px solid var(--light); font-size: 1.05rem; }
+.pos-receipt { border: 1px dashed var(--steel); }
+.staff-filters { display: flex; gap: 14px; margin-bottom: 20px; }
+.staff-filters label { display: grid; gap: 5px; font-size: .82rem; }
+.staff-filters select, .staff-table select { padding: 8px; border: 1px solid var(--light); background: white; }
+.projects-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.project-card { margin: 0; }
+.project-title-row { display: flex; justify-content: space-between; gap: 12px; align-items: start; }
+.project-title-row h2 { margin: 0; }
+.project-title-row span, .project-phases span { padding: 4px 8px; border-radius: 20px; background: var(--cream); font-size: .74rem; }
+.project-progress { height: 24px; position: relative; margin: 18px 0; background: var(--cream); border-radius: 14px; }
+.project-progress > span { display: block; height: 100%; border-radius: inherit; background: var(--steel); }
+.project-progress > strong { position: absolute; inset: 3px 8px auto; color: var(--navy); font-size: .78rem; }
+.project-phases { display: flex; flex-wrap: wrap; gap: 7px; }
+.project-history { padding: 12px 0 0 18px; font-size: .78rem; }
+.project-history li { padding: 5px 0; }
+.project-history span { display: block; color: var(--mid); }
+.project-admin-forms { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.project-form { grid-template-columns: 1fr; }
+.report-filters { display: flex; align-items: end; gap: 12px; margin-bottom: 20px; }
+.report-filters label { display: grid; gap: 5px; font-size: .82rem; }
+.report-filters input { padding: 9px; border: 1px solid var(--light); }
+.report-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.report-cards .staff-card { margin: 0; display: grid; gap: 10px; }
+.report-cards span { color: var(--mid); font-size: .84rem; }
+.report-cards strong { font-size: 1.4rem; }
+.report-top-products { padding-left: 22px; }
+.report-top-products li { padding: 9px 0; border-bottom: 1px solid var(--light); }
+.report-top-products li span { display: inline-block; min-width: 65%; }
+.customer-order { display: grid; gap: 6px; padding: 14px 0; border-bottom: 1px solid var(--light); }
+.customer-order small { color: var(--mid); }
+@media print { body * { visibility: hidden; } .pos-receipt, .pos-receipt * { visibility: visible; } .pos-receipt { position: absolute; inset: 0; width: 100%; margin: 0; border: 0; } .pos-receipt button { display: none; } }
+@media (max-width: 700px) { .react-modal { grid-template-columns: 1fr; gap: 16px; padding: 24px; } .react-modal > img { height: 240px; } }
+@media (max-width: 560px) { .react-form-dialog { padding: 26px 20px; } .react-form-row { grid-template-columns: 1fr; } }
+@media (max-width: 800px) { .staff-page { padding: 34px 18px 64px; } .staff-form { grid-template-columns: 1fr; } .pos-layout { grid-template-columns: 1fr; } .staff-card { padding: 18px; } }
+@media (max-width: 560px) { .report-filters { align-items: stretch; flex-direction: column; } }
+
+/* Los enlaces de la cuenta y los botones del pie conservan los estados visuales originales. */
+.account-dropdown a { display: block; width: 100%; padding: 12px 18px; color: var(--navy); font-size: .8rem; font-weight: 500; }
+.account-dropdown a:hover { background: var(--cream); }
+.footer-col ul li button { color: inherit; font: inherit; font-size: .8rem; opacity: .48; transition: opacity var(--tr); }
+.footer-col ul li button:hover { opacity: 1; }
+
+/* El detalle React reutiliza la composición editorial del modal original. */
+.react-modal.modal-product { display: block; width: min(820px, 96vw); padding: 0; border-radius: var(--radius-lg); }
+.react-modal .product-modal-inner { grid-template-columns: 1fr 1fr; }
+.react-modal .product-modal-img { min-width: 0; }
+.react-modal .product-modal-info { min-width: 0; }
+.react-modal .react-modal-close { top: 14px; right: 14px; z-index: 2; width: 36px; height: 36px; border-radius: 50%; background: var(--cream); color: var(--navy); }
+.react-modal .react-sizes { margin: 0 0 22px; }
+.react-modal .react-sizes button { min-width: 40px; height: 36px; padding: 0 12px; border-radius: var(--radius); font-size: .75rem; font-weight: 600; }
+@media (max-width: 700px) { .react-modal .product-modal-inner { grid-template-columns: 1fr; } .react-modal .product-modal-img { height: 260px; } .react-modal .product-modal-info { max-height: 48vh; overflow-y: auto; padding: 24px; } }
