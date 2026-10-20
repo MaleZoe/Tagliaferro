@@ -112,15 +112,25 @@ app.get('/api/salud', (req, res) => res.json({ ok: true }));
 // ---------------------------------------------------------------------
 // Devuelve únicamente productos activos con sus talles y existencias disponibles.
 async function listarProductos(req, res) {
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('products')
     .select('id, nombre, descripcion, precio, precio_anterior, badge, imagen_url, sports(slug), product_variants(id, talle, color, stock, activo)')
     .eq('activo', true)
     .order('id');
 
+  if (error && (error.code === '42703' || String(error.message).includes('color') || String(error.message).includes('activo'))) {
+    const fallback = await supabase
+      .from('products')
+      .select('id, nombre, descripcion, precio, precio_anterior, badge, imagen_url, sports(slug), product_variants(id, talle, stock)')
+      .eq('activo', true)
+      .order('id');
+    data = fallback.data;
+    error = fallback.error;
+  }
+
   if (error) {
-    console.error('No se pudo consultar el catálogo:', error.message);
-    return res.status(500).json({ error: 'No se pudo cargar el catálogo' });
+    console.error('No se pudo consultar el catalogo:', error.message);
+    return res.status(500).json({ error: 'No se pudo cargar el catalogo' });
   }
 
   const productos = data.map(p => {
