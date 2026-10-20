@@ -7,8 +7,10 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [ready, setReady] = useState(false);
-  const [role, setRole] = useState(null);
-  const [roleReady, setRoleReady] = useState(false);
+  const [roleState, setRoleState] = useState({ userId: null, role: null, error: '' });
+  const userId = session?.user?.id || null;
+  const roleReady = !userId || roleState.userId === userId;
+  const role = roleReady ? roleState.role : null;
 
   // Recupera la sesión almacenada por el SDK y escucha renovaciones/cierres de sesión.
   useEffect(() => {
@@ -37,14 +39,15 @@ export function AuthProvider({ children }) {
 
   // Consulta el rol asignado en el backend; sirve para navegación, pero no sustituye la autorización de cada endpoint.
   useEffect(() => {
-    if (!session) { setRole(null); setRoleReady(true); return undefined; }
+    if (!session) { setRoleState({ userId: null, role: null, error: '' }); return undefined; }
     let active = true;
-    setRoleReady(false);
     fetch(`${import.meta.env.VITE_API_URL || '/api/v1'}/me`, { headers: { Authorization: `Bearer ${session.access_token}` } })
-      .then((response) => response.ok ? response.json() : null)
-      .then((profile) => { if (active) setRole(profile?.role || null); })
-      .catch(() => { if (active) setRole(null); })
-      .finally(() => { if (active) setRoleReady(true); });
+      .then(async (response) => {
+        const profile = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(profile.error || 'No se pudo verificar el rol en el servidor.');
+        if (active) setRoleState({ userId: session.user.id, role: profile?.role || null, error: '' });
+      })
+      .catch((error) => { if (active) setRoleState({ userId: session.user.id, role: null, error: error.message || 'No se pudo verificar el rol en el servidor.' }); });
     return () => { active = false; };
   }, [session]);
 
@@ -53,6 +56,7 @@ export function AuthProvider({ children }) {
     user: session?.user || null,
     role,
     roleReady,
+    roleError: roleReady ? roleState.error : '',
     ready,
     configured: Boolean(supabase),
     // Entrega el token vigente al backend para que valide identidad con Supabase Auth.
@@ -71,7 +75,7 @@ export function AuthProvider({ children }) {
     signOut: () => supabase.auth.signOut(),
     recoverPassword: (email) => supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin }),
     updatePassword: (password) => supabase.auth.updateUser({ password }),
-  }), [session, ready, role, roleReady]);
+  }), [session, ready, role, roleReady, roleState.error]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

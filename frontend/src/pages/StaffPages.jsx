@@ -35,7 +35,9 @@ export function ProtectedStaffPage({ children }) {
 export function ProtectedAdminPage({ children }) {
   const auth = useAuth();
   if (!auth.ready || (auth.user && !auth.roleReady)) return <main className="staff-page"><p role="status">Verificando sesión y permisos…</p></main>;
-  if (!auth.user || auth.role !== 'administrador') return <main className="staff-page"><h1>Acceso restringido</h1><p>Esta pantalla requiere una cuenta administradora.</p></main>;
+  if (!auth.user) return <main className="staff-page"><h1>Iniciá sesión</h1><p>Para entrar al panel administrativo, iniciá sesión con una cuenta administradora.</p></main>;
+  if (auth.roleError) return <main className="staff-page"><h1>No se pudieron verificar los permisos</h1><p>{auth.roleError} Revisá que esté aplicada la migración <code>20261018_001_inventory_pos.sql</code> y que el backend esté conectado a Supabase.</p></main>;
+  if (auth.role !== 'administrador') return <main className="staff-page"><h1>Acceso restringido</h1><p>La sesión está iniciada, pero el backend devuelve el rol “{auth.role || 'sin asignar'}”. Asigná el rol administrador a este correo en <code>app_user_roles</code> para habilitar el panel.</p></main>;
   return children;
 }
 

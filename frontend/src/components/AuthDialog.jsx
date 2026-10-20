@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext.jsx';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export default function AuthDialog({ open, onClose, initialMode = 'login' }) {
+export default function AuthDialog({ open, onClose, onLoginSuccess, initialMode = 'login' }) {
   const auth = useAuth();
   const [mode, setMode] = useState(initialMode);
   const [busy, setBusy] = useState(false);
@@ -44,8 +44,9 @@ export default function AuthDialog({ open, onClose, initialMode = 'login' }) {
     setBusy(true);
     try {
       if (mode === 'login') {
-        const { error: authError } = await auth.signIn(email, password);
+        const { data, error: authError } = await auth.signIn(email, password);
         if (authError) throw authError;
+        onLoginSuccess?.(data?.user?.id || '');
         onClose();
       } else if (mode === 'register') {
         const { data, error: authError } = await auth.signUp(email, password, String(form.get('nombre')).trim(), String(form.get('apellido')).trim());

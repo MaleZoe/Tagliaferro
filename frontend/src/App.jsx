@@ -56,6 +56,7 @@ function App() {
   const [announcementVisible, setAnnouncementVisible] = useState(true);
   const paymentProcessed = useRef('');
   const previousRole = useRef(null);
+  const [pendingAdminLoginId, setPendingAdminLoginId] = useState('');
   const auth = useAuth();
 
   useEffect(() => {
@@ -63,12 +64,27 @@ function App() {
     return () => document.body.classList.remove('admin-page-active');
   }, [isAdminArea]);
 
+  // Abrir el inicio de sesión al visitar /admin sin una sesión activa.
+  useEffect(() => {
+    if (location.pathname === '/admin' && auth.ready && !auth.user) {
+      setAuthDialog((current) => current.open ? current : { open: true, mode: 'login' });
+    }
+  }, [location.pathname, auth.ready, auth.user]);
+
   // Cuando la API resuelve que la cuenta recién autenticada es administradora, abre el panel.
   useEffect(() => {
     const wasAdmin = previousRole.current === 'administrador';
     previousRole.current = auth.roleReady ? auth.role : null;
     if (auth.user && auth.roleReady && auth.role === 'administrador' && !wasAdmin) navigate('/admin', { replace: true });
   }, [auth.user, auth.role, auth.roleReady, navigate]);
+
+  // Vincula la redirección al usuario que acaba de iniciar sesión y espera el rol del backend.
+  useEffect(() => {
+    if (!pendingAdminLoginId || auth.user?.id !== pendingAdminLoginId || !auth.roleReady) return;
+    if (auth.role === 'administrador') navigate('/admin', { replace: true });
+    else if (!auth.role) setNotice('No se pudo verificar tu rol. Actualizá e intentá nuevamente.');
+    setPendingAdminLoginId('');
+  }, [pendingAdminLoginId, auth.user, auth.role, auth.roleReady, navigate]);
 
   // Supabase vuelve con type=recovery después de validar el enlace enviado al correo.
   useEffect(() => {
@@ -222,7 +238,7 @@ function App() {
             {accountOpen && auth.user && <div className="account-dropdown">
               <button onClick={() => { closeAccountMenu(); setOrdersOpen(true); }}>Mis pedidos</button>
               {['administrador', 'empleado'].includes(auth.role) && <><Link to="/inventario" onClick={closeAccountMenu}>Inventario</Link><Link to="/pos" onClick={closeAccountMenu}>Punto de venta</Link><Link to="/proyectos" onClick={closeAccountMenu}>Proyectos</Link></>}
-              {auth.role === 'administrador' && <><Link to="/clientes" onClick={closeAccountMenu}>Clientes</Link><Link to="/empleados" onClick={closeAccountMenu}>Empleados</Link><Link to="/reportes" onClick={closeAccountMenu}>Reportes</Link></>}
+              {auth.role === 'administrador' && <><Link to="/admin" onClick={closeAccountMenu}>Dashboard</Link><Link to="/clientes" onClick={closeAccountMenu}>Clientes</Link><Link to="/empleados" onClick={closeAccountMenu}>Empleados</Link><Link to="/reportes" onClick={closeAccountMenu}>Reportes</Link></>}
               <button onClick={async () => { const { error } = await auth.signOut(); if (error) setNotice(error.message); else { closeAccountMenu(); setNotice('Sesión cerrada.'); } }}>Cerrar sesión</button>
             </div>}
           </div>
@@ -298,7 +314,7 @@ function App() {
       {selected && <div className="react-scrim" onClick={() => setSelected(null)}><section className="react-modal modal-product" role="dialog" aria-modal="true" aria-labelledby="selected-product-name" onClick={(event) => event.stopPropagation()}><button className="react-modal-close" onClick={() => setSelected(null)} aria-label="Cerrar">×</button><div className="product-modal-inner"><div className="product-modal-img"><img src={selected.img} alt={selected.name} /></div><div className="product-modal-info"><p className="product-modal-sport">{sportLabels[selected.sport] || selected.sport}</p><h2 className="product-modal-name" id="selected-product-name">{selected.name}</h2><p className="product-modal-desc">{selected.desc}</p><div className="product-modal-price-wrap"><strong className="product-modal-price">{money(selected.price)}</strong></div><fieldset className="react-sizes"><legend>Talle</legend>{(selected.sizes || []).map((item) => { const variants = (selected.variants || []).filter((variant) => variant.size === item); const available = variants.length ? variants.some((variant) => variant.stock > 0) : Number(selected.stock?.[item] ?? 0) > 0; return <button type="button" disabled={!available} aria-pressed={size === item} className={size === item ? 'selected' : ''} key={item} onClick={() => { setSize(item); const first = variants.find((variant) => variant.stock > 0); setColor(first?.color || ''); }}>{item}</button>; })}</fieldset>{colorsForSize.length > 0 && <label className="react-color-select">Color<select value={color} onChange={(event) => setColor(event.target.value)}>{selectedSizeVariants.map((variant) => <option key={variant.id} value={variant.color} disabled={variant.stock < 1}>{variant.color || 'Sin color'} · stock {variant.stock}</option>)}</select></label>}<p className="react-variant-stock">Disponibles: {activeVariant?.stock ?? selected.stock?.[size] ?? 0}</p><button className="btn btn-primary btn-full" disabled={!size || (selected.variants?.length ? !activeVariant || activeVariant.stock < 1 : !Number(selected.stock?.[size]))} onClick={() => addToCart(selected, size, activeVariant)}>AGREGAR AL CARRITO</button></div></div></section></div>}
 
       {cartOpen && <div className="react-scrim" onClick={() => setCartOpen(false)}><aside className="react-cart-panel" aria-label="Mi carrito" onClick={(event) => event.stopPropagation()}><div className="cart-header"><h2>Mi carrito ({cartCount})</h2><button className="panel-close" onClick={() => setCartOpen(false)} aria-label="Cerrar carrito">×</button></div>{cart.length === 0 ? <p className="cart-empty">Tu carrito está vacío.</p> : <><ul className="react-cart-lines">{cart.map((item) => <li key={item.variantId || `${item.id}-${item.size}`}><img src={item.img} alt="" /><div><strong>{item.name}</strong><small>Talle {item.size}{item.color ? ` · ${item.color}` : ''} · {money(item.price)}</small><div className="qty-control"><button className="qty-btn" onClick={() => updateQuantity(item, -1)} aria-label="Restar">−</button><span>{item.qty}</span><button className="qty-btn" onClick={() => updateQuantity(item, 1)} aria-label="Sumar">+</button><button className="react-remove" onClick={() => removeFromCart(item)}>Quitar</button></div></div></li>)}</ul><div className="react-cart-total"><span>Subtotal</span><strong>{money(cartTotal)}</strong><small>El precio definitivo y la disponibilidad se confirman con el servidor.</small></div><button className="btn btn-primary btn-full" onClick={() => { setCartOpen(false); if (!auth.user) setAuthDialog({ open: true, mode: 'login' }); else setCheckoutOpen(true); }}>CONTINUAR COMPRA</button></>}</aside></div>}
-      <AuthDialog open={authDialog.open} initialMode={authDialog.mode} onClose={() => setAuthDialog((current) => ({ ...current, open: false }))} />
+      <AuthDialog open={authDialog.open} initialMode={authDialog.mode} onLoginSuccess={setPendingAdminLoginId} onClose={() => setAuthDialog((current) => ({ ...current, open: false }))} />
       <CheckoutDialog cart={cart} open={checkoutOpen} onClose={() => setCheckoutOpen(false)} onPaymentCreated={(result) => { localStorage.setItem(`es_pending_cart_${result.orderId}`, JSON.stringify(cart)); setCart([]); window.location.assign(result.init_point); }} />
       <OrdersPanel open={ordersOpen} onClose={() => setOrdersOpen(false)} />
       {notice && <div className="toast react-toast" role="status">{notice}</div>}
