@@ -1,5 +1,6 @@
 // Centraliza la comunicación del frontend con el catálogo versionado de la API.
-const catalogUrl = import.meta.env.VITE_API_URL || '/api/v1/products';
+const apiBase = import.meta.env.VITE_API_URL || '/api/v1';
+const catalogUrl = `${apiBase.replace(/\/$/, '')}/products`;
 
 /**
  * Obtiene el catálogo activo del servidor y normaliza los errores para mostrarlos en pantalla.
