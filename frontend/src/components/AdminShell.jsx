@@ -35,23 +35,21 @@ function MenuIcon({ name }) {
 }
 
 export default function AdminShell({ children }) {
-  const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const auth = useAuth();
   const location = useLocation();
   const isOnlineSales = location.pathname === '/ventas-online';
 
-  return <div className={`admin-shell${collapsed ? ' admin-shell--collapsed' : ''}${mobileOpen ? ' admin-shell--mobile-open' : ''}`}>
+  return <div className={`admin-shell${mobileOpen ? ' admin-shell--mobile-open' : ''}`}>
     <button className="admin-mobile-toggle" type="button" onClick={() => setMobileOpen((value) => !value)} aria-label={mobileOpen ? 'Cerrar menú' : 'Abrir menú'} aria-expanded={mobileOpen}>☰</button>
     <aside className="admin-sidebar" aria-label="Menú de administración">
       <Link className="admin-brand" to={auth.role === 'empleado' ? '/pos' : '/admin'}><img className="admin-brand-logo" src="/img/logo-elite-sport.png" alt="Élite Sport" /><span className="admin-brand-copy"><strong>ÉLITE SPORT</strong><small>Administración</small></span></Link>
       <nav className="admin-nav">
         <p className="admin-nav-caption">OPERACIÓN</p>
         {links.filter((item) => auth.role !== 'empleado' || ['/caja', '/pos', '/inventario', '/movimientos-stock', '/proyectos'].includes(item.to)).map((item) =>
-          <NavLink key={item.to} to={item.to} end={item.end} onClick={() => setMobileOpen(false)} className={({ isActive }) => `admin-nav-link${isActive || (isOnlineSales && item.to === '/pedidos') ? ' active' : ''}`} title={collapsed ? item.label : undefined}><span className="admin-nav-icon"><MenuIcon name={item.icon} /></span><span className="admin-nav-label">{item.label}</span></NavLink>)}
+          <NavLink key={item.to} to={item.to} end={item.end} onClick={() => setMobileOpen(false)} className={({ isActive }) => `admin-nav-link${isActive || (isOnlineSales && item.to === '/pedidos') ? ' active' : ''}`}><span className="admin-nav-icon"><MenuIcon name={item.icon} /></span><span className="admin-nav-label">{item.label}</span></NavLink>)}
       </nav>
       <div className="admin-sidebar-bottom">
-        <button className="admin-collapse" type="button" onClick={() => setCollapsed((value) => !value)} aria-label={collapsed ? 'Expandir menú' : 'Contraer menú'}><span aria-hidden="true">{collapsed ? '»' : '«'}</span><span className="admin-nav-label">{collapsed ? '' : 'Contraer menú'}</span></button>
         <Link to="/" className="admin-store-link"><span aria-hidden="true">↖</span><span className="admin-nav-label">Volver a la tienda</span></Link>
         <button className="admin-logout" type="button" onClick={() => auth.signOut()}><span aria-hidden="true">⇥</span><span className="admin-nav-label">Cerrar sesión</span></button>
       </div>
