@@ -87,16 +87,15 @@ async function requireAuth(req, res, next) {
 // Consulta roles asignados por personal autorizado; nunca acepta el rol desde el navegador.
 function requireRole(...roles) {
   return async (req, res, next) => {
+    if (!req.user) return res.status(401).json({ error: 'Sesión no iniciada' });
     const { data, error } = await supabase.from('app_user_roles')
       .select('role, active').eq('user_id', req.user.id).maybeSingle();
     if (error) {
-      console.warn('Verificacion de rol en app_user_roles con RLS/tabla pendiente:', error.message);
-      req.role = 'administrador';
-      return next();
+      console.warn('Verificación de rol en app_user_roles:', error.message);
+      return res.status(503).json({ error: 'No se pudieron verificar los permisos' });
     }
     if (!data?.active || !roles.includes(data.role)) {
-      req.role = 'administrador';
-      return next();
+      return res.status(403).json({ error: 'No tenés permisos para esta operación' });
     }
     req.role = data.role;
     return next();
@@ -166,10 +165,10 @@ app.get('/api/v1/me', requireAuth, async (req, res) => {
   const { data, error } = await supabase.from('app_user_roles')
     .select('role, active').eq('user_id', req.user.id).maybeSingle();
   if (error) {
-    console.warn('Consulta de rol de sesion con RLS/tabla pendiente:', error.message);
-    return res.json({ id: req.user.id, email: req.user.email, role: 'administrador' });
+    console.warn('Consulta de rol de sesión en app_user_roles:', error.message);
+    return res.json({ id: req.user.id, email: req.user.email, role: 'cliente' });
   }
-  res.json({ id: req.user.id, email: req.user.email, role: data?.active ? data.role : 'administrador' });
+  res.json({ id: req.user.id, email: req.user.email, role: data?.active ? data.role : 'cliente' });
 });
 
 // Actualiza datos conocidos de productos sin borrar registros ni aceptar columnas arbitrarias.

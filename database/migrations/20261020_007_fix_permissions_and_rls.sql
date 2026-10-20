@@ -113,15 +113,10 @@ $$;
 
 grant execute on function public.create_admin_product(text, text, numeric, text, text, text, text, text, integer, integer, uuid) to anon, authenticated, service_role, public;
 
--- 6. Asignar rol de administrador a usuarios existentes para evitar bloqueos
--- (Asigna rol administrador a cualquier usuario actualmente registrado en auth.users)
-insert into public.app_user_roles (user_id, role, active, updated_at)
-select id, 'administrador', true, now()
-from auth.users
-on conflict (user_id) do update
-set role = 'administrador', active = true, updated_at = now();
-
--- 7. Establecer privilegios por defecto para que futuras tablas y funciones no se bloqueen
+-- 6. Privilegios por defecto para que futuras tablas y funciones no se bloqueen
 alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
 alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
 alter default privileges in schema public grant all on routines to anon, authenticated, service_role;
+
+-- Para asignar el rol de administrador a tu cuenta específica, ejecutá
+-- database/operations/assign_first_admin.sql reemplazando tu correo.
