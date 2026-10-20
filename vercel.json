@@ -12,5 +12,9 @@
       "installCommand": "npm install",
       "entrypoint": "server.js"
     }
-  }
+  },
+  "routing": [
+    { "path": "/api/**", "service": "backend" },
+    { "path": "/**", "service": "frontend" }
+  ]
 }
