@@ -1,0 +1,397 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 980" width="1440" height="980" style="background:#0b1118; font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+  <defs>
+    <filter id="card-shadow" x="-5%" y="-5%" width="110%" height="115%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000000" flood-opacity="0.04" />
+    </filter>
+    <linearGradient id="grad-primary" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="bar-local" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+    <linearGradient id="bar-online" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#818cf8" />
+      <stop offset="100%" stop-color="#4f46e5" />
+    </linearGradient>
+  </defs>
+
+  <!-- BACKGROUND -->
+  <rect width="1440" height="980" fill="#f8fafc" />
+
+  <!-- ==================== SIDEBAR ==================== -->
+  <rect x="0" y="0" width="260" height="980" fill="#141f2b" />
+  
+  <!-- Brand Logo & Title -->
+  <g transform="translate(24, 28)">
+    <rect width="36" height="36" rx="8" fill="#567c8d" />
+    <path d="M10 12 L18 24 L26 12 Z" fill="#ffffff" opacity="0.9" />
+    <text x="48" y="16" fill="#ffffff" font-size="14" font-weight="700" letter-spacing="1">ÉLITE SPORT</text>
+    <text x="48" y="30" fill="#94a3b8" font-size="11" font-weight="500">Administración</text>
+  </g>
+
+  <!-- Sidebar Nav Section -->
+  <text x="24" y="100" fill="#64748b" font-size="10" font-weight="700" letter-spacing="1.2">OPERACIÓN</text>
+
+  <!-- Nav Items -->
+  <!-- Item 1: Dashboard (Active) -->
+  <g transform="translate(16, 114)">
+    <rect width="228" height="38" rx="8" fill="#1e2e3d" />
+    <rect x="0" y="8" width="3" height="22" rx="1.5" fill="#38bdf8" />
+    <path d="M16 13h5v5h-5z M25 13h5v5h-5z M16 22h5v5h-5z M25 22h5v5h-5z" fill="none" stroke="#38bdf8" stroke-width="1.6" />
+    <text x="44" y="24" fill="#ffffff" font-size="13" font-weight="600">Dashboard</text>
+  </g>
+
+  <!-- Item 2: Productos y stock -->
+  <g transform="translate(16, 156)">
+    <path d="M16 16l6-3.5 6 3.5v7l-6 3.5-6-3.5z M22 12.5v14" fill="none" stroke="#94a3b8" stroke-width="1.6" />
+    <text x="44" y="24" fill="#cbd5e1" font-size="13" font-weight="500">Productos y stock</text>
+  </g>
+
+  <!-- Item 3: Caja del local -->
+  <g transform="translate(16, 198)">
+    <rect x="16" y="14" width="16" height="12" rx="2" fill="none" stroke="#94a3b8" stroke-width="1.6" />
+    <circle cx="24" cy="20" r="2" fill="#94a3b8" />
+    <text x="44" y="24" fill="#cbd5e1" font-size="13" font-weight="500">Caja del local</text>
+  </g>
+
+  <!-- Item 4: Ventas online -->
+  <g transform="translate(16, 240)">
+    <path d="M16 26l4-5 3 2 5-6" fill="none" stroke="#94a3b8" stroke-width="1.6" stroke-linecap="round" />
+    <text x="44" y="24" fill="#cbd5e1" font-size="13" font-weight="500">Ventas online</text>
+  </g>
+
+  <!-- Item 5: Pedidos -->
+  <g transform="translate(16, 282)">
+    <rect x="17" y="14" width="14" height="13" rx="1" fill="none" stroke="#94a3b8" stroke-width="1.6" />
+    <line x1="20" y1="18" x2="28" y2="18" stroke="#94a3b8" stroke-width="1.6" />
+    <line x1="20" y1="22" x2="25" y2="22" stroke="#94a3b8" stroke-width="1.6" />
+    <text x="44" y="24" fill="#cbd5e1" font-size="13" font-weight="500">Pedidos</text>
+    <rect x="195" y="14" width="22" height="18" rx="9" fill="#f59e0b" />
+    <text x="206" y="27" fill="#ffffff" font-size="10" font-weight="700" text-anchor="middle">3</text>
+  </g>
+
+  <!-- Item 6: Clientes -->
+  <g transform="translate(16, 324)">
+    <circle cx="24" cy="18" r="3" fill="none" stroke="#94a3b8" stroke-width="1.6" />
+    <path d="M18 26c0-2.5 2.5-4 6-4s6 1.5 6 4" fill="none" stroke="#94a3b8" stroke-width="1.6" />
+    <text x="44" y="24" fill="#cbd5e1" font-size="13" font-weight="500">Clientes</text>
+  </g>
+
+  <!-- Item 7: Proveedores -->
+  <g transform="translate(16, 366)">
+    <rect x="16" y="16" width="10" height="9" fill="none" stroke="#94a3b8" stroke-width="1.5" />
+    <path d="M26 19h4l2 3v3h-6z" fill="none" stroke="#94a3b8" stroke-width="1.5" />
+    <circle cx="19" cy="26" r="1.5" fill="#94a3b8" />
+    <circle cx="29" cy="26" r="1.5" fill="#94a3b8" />
+    <text x="44" y="24" fill="#cbd5e1" font-size="13" font-weight="500">Proveedores</text>
+  </g>
+
+  <!-- Item 8: Reportes -->
+  <g transform="translate(16, 408)">
+    <line x1="18" y1="26" x2="18" y2="18" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" />
+    <line x1="23" y1="26" x2="23" y2="13" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" />
+    <line x1="28" y1="26" x2="28" y2="21" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" />
+    <text x="44" y="24" fill="#cbd5e1" font-size="13" font-weight="500">Reportes</text>
+  </g>
+
+  <!-- Item 9: Proyectos -->
+  <g transform="translate(16, 450)">
+    <path d="M16 16h4l2 2h6a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H16z" fill="none" stroke="#94a3b8" stroke-width="1.6" />
+    <text x="44" y="24" fill="#cbd5e1" font-size="13" font-weight="500">Proyectos</text>
+  </g>
+
+  <!-- Item 10: Configuración -->
+  <g transform="translate(16, 492)">
+    <circle cx="24" cy="20" r="3" fill="none" stroke="#94a3b8" stroke-width="1.6" />
+    <path d="M24 14v2 M24 24v2 M18 20h2 M28 20h2" stroke="#94a3b8" stroke-width="1.6" stroke-linecap="round" />
+    <text x="44" y="24" fill="#cbd5e1" font-size="13" font-weight="500">Configuración</text>
+  </g>
+
+  <!-- Sidebar Footer: Return & Logout -->
+  <g transform="translate(24, 910)">
+    <line x1="0" y1="0" x2="212" y2="0" stroke="#1e2e3d" stroke-width="1" />
+    <text x="0" y="24" fill="#94a3b8" font-size="12" font-weight="500">↖ Volver a la tienda</text>
+    <text x="0" y="44" fill="#ef4444" font-size="12" font-weight="500">⇥ Cerrar sesión</text>
+  </g>
+
+  <!-- ==================== TOPBAR ==================== -->
+  <g transform="translate(260, 0)">
+    <rect width="1180" height="64" fill="#ffffff" stroke="#e2e8f0" stroke-width="1" />
+    <text x="32" y="28" fill="#64748b" font-size="11" font-weight="600" letter-spacing="0.5">PANEL ADMINISTRATIVO</text>
+    <text x="32" y="46" fill="#0f172a" font-size="14" font-weight="700">malezoe@gmail.com</text>
+
+    <!-- Role Badge -->
+    <rect x="1040" y="18" width="105" height="28" rx="14" fill="#ecfdf5" stroke="#a7f3d0" stroke-width="1" />
+    <circle cx="1054" cy="32" r="3.5" fill="#10b981" />
+    <text x="1066" y="36" fill="#065f46" font-size="11" font-weight="700">Administrador</text>
+  </g>
+
+  <!-- ==================== MAIN DASHBOARD CONTENT ==================== -->
+  <g transform="translate(292, 88)">
+
+    <!-- Header Section -->
+    <text x="0" y="14" fill="#567c8d" font-size="11" font-weight="700" letter-spacing="1">CENTRO DE OPERACIONES</text>
+    <text x="0" y="44" fill="#0f172a" font-size="26" font-weight="800">Dashboard</text>
+    <text x="0" y="66" fill="#64748b" font-size="13">Una vista clara de las ventas y el estado en tiempo real de tu tienda.</text>
+
+    <!-- Toolbar / Period Controls (Right aligned) -->
+    <g transform="translate(860, 20)">
+      <rect width="250" height="42" rx="8" fill="#ffffff" stroke="#e2e8f0" stroke-width="1" />
+      <text x="14" y="25" fill="#64748b" font-size="12" font-weight="500">Período:</text>
+      <rect x="70" y="7" width="60" height="28" rx="6" fill="#141f2b" />
+      <text x="100" y="25" fill="#ffffff" font-size="11" font-weight="600" text-anchor="middle">Hoy</text>
+      <text x="155" y="25" fill="#64748b" font-size="11" font-weight="500" text-anchor="middle">7 días</text>
+      <text x="210" y="25" fill="#64748b" font-size="11" font-weight="500" text-anchor="middle">30 días</text>
+    </g>
+
+    <!-- ==================== 4 TOP KPI CARDS ==================== -->
+    <!-- Card 1: Ventas del período -->
+    <g transform="translate(0, 92)" filter="url(#card-shadow)">
+      <rect width="260" height="116" rx="12" fill="#ffffff" stroke="#e2e8f0" stroke-width="1" />
+      <rect x="0" y="0" width="260" height="4" rx="2" fill="#0ea5e9" />
+      <text x="18" y="28" fill="#64748b" font-size="12" font-weight="600">Ventas del período</text>
+      <circle cx="230" cy="28" r="14" fill="#f0f9ff" />
+      <path d="M225 32l4-7 3 4 5-6" fill="none" stroke="#0ea5e9" stroke-width="1.8" stroke-linecap="round" />
+      <text x="18" y="68" fill="#0f172a" font-size="24" font-weight="800">$ 1.250.000</text>
+      <text x="18" y="94" fill="#10b981" font-size="11" font-weight="600">↑ 12% vs período anterior</text>
+    </g>
+
+    <!-- Card 2: Ventas del local -->
+    <g transform="translate(284, 92)" filter="url(#card-shadow)">
+      <rect width="260" height="116" rx="12" fill="#ffffff" stroke="#e2e8f0" stroke-width="1" />
+      <rect x="0" y="0" width="260" height="4" rx="2" fill="#38bdf8" />
+      <text x="18" y="28" fill="#64748b" font-size="12" font-weight="600">Ventas del local (POS)</text>
+      <circle cx="230" cy="28" r="14" fill="#f0fdf4" />
+      <rect x="224" y="22" width="12" height="12" rx="2" fill="none" stroke="#16a34a" stroke-width="1.6" />
+      <text x="18" y="68" fill="#0f172a" font-size="24" font-weight="800">$ 820.000</text>
+      <text x="18" y="94" fill="#64748b" font-size="11">Ventas presenciales completadas</text>
+    </g>
+
+    <!-- Card 3: Ventas online -->
+    <g transform="translate(568, 92)" filter="url(#card-shadow)">
+      <rect width="260" height="116" rx="12" fill="#ffffff" stroke="#e2e8f0" stroke-width="1" />
+      <rect x="0" y="0" width="260" height="4" rx="2" fill="#818cf8" />
+      <text x="18" y="28" fill="#64748b" font-size="12" font-weight="600">Ventas online</text>
+      <circle cx="230" cy="28" r="14" fill="#eef2ff" />
+      <circle cx="230" cy="28" r="6" fill="none" stroke="#6366f1" stroke-width="1.6" />
+      <text x="18" y="68" fill="#0f172a" font-size="24" font-weight="800">$ 430.000</text>
+      <text x="18" y="94" fill="#64748b" font-size="11">Pedidos web confirmados</text>
+    </g>
+
+    <!-- Card 4: Pedidos pendientes -->
+    <g transform="translate(852, 92)" filter="url(#card-shadow)">
+      <rect width="260" height="116" rx="12" fill="#ffffff" stroke="#e2e8f0" stroke-width="1" />
+      <rect x="0" y="0" width="260" height="4" rx="2" fill="#f59e0b" />
+      <text x="18" y="28" fill="#64748b" font-size="12" font-weight="600">Pedidos pendientes</text>
+      <circle cx="230" cy="28" r="14" fill="#fef3c7" />
+      <path d="M226 28h8 M230 24v8" stroke="#d97706" stroke-width="1.8" stroke-linecap="round" />
+      <text x="18" y="68" fill="#0f172a" font-size="24" font-weight="800">3</text>
+      <text x="18" y="94" fill="#d97706" font-size="11" font-weight="600">Requieren empaquetado</text>
+    </g>
+
+    <!-- ==================== MIDDLE ROW: CHART & RESUMEN OPERATIVO ==================== -->
+    <!-- Left: Chart Card (Width: 700) -->
+    <g transform="translate(0, 230)" filter="url(#card-shadow)">
+      <rect width="720" height="320" rx="12" fill="#ffffff" stroke="#e2e8f0" stroke-width="1" />
+      
+      <text x="24" y="32" fill="#567c8d" font-size="10" font-weight="700" letter-spacing="1">RENDIMIENTO</text>
+      <text x="24" y="56" fill="#0f172a" font-size="17" font-weight="700">Ingresos por día</text>
+      <text x="24" y="74" fill="#64748b" font-size="12">Ventas completadas en el local y online</text>
+
+      <!-- Chart Legend -->
+      <g transform="translate(560, 36)">
+        <circle cx="0" cy="0" r="4" fill="#0284c7" />
+        <text x="10" y="4" fill="#475569" font-size="11" font-weight="600">Local</text>
+        <circle cx="70" cy="0" r="4" fill="#6366f1" />
+        <text x="80" y="4" fill="#475569" font-size="11" font-weight="600">Online</text>
+      </g>
+
+      <!-- Chart Grid Lines -->
+      <line x1="24" y1="120" x2="696" y2="120" stroke="#f1f5f9" stroke-width="1" />
+      <line x1="24" y1="170" x2="696" y2="170" stroke="#f1f5f9" stroke-width="1" />
+      <line x1="24" y1="220" x2="696" y2="220" stroke="#f1f5f9" stroke-width="1" />
+      <line x1="24" y1="270" x2="696" y2="270" stroke="#cbd5e1" stroke-width="1" />
+
+      <!-- Bars for 7 days -->
+      <!-- Lun -->
+      <g transform="translate(60, 270)">
+        <rect x="-16" y="-110" width="32" height="110" rx="4" fill="url(#bar-local)" />
+        <rect x="-16" y="-150" width="32" height="38" rx="4" fill="url(#bar-online)" />
+        <text x="0" y="18" fill="#64748b" font-size="11" text-anchor="middle">Lun 14</text>
+      </g>
+      <!-- Mar -->
+      <g transform="translate(150, 270)">
+        <rect x="-16" y="-80" width="32" height="80" rx="4" fill="url(#bar-local)" />
+        <rect x="-16" y="-130" width="32" height="48" rx="4" fill="url(#bar-online)" />
+        <text x="0" y="18" fill="#64748b" font-size="11" text-anchor="middle">Mar 15</text>
+      </g>
+      <!-- Mie -->
+      <g transform="translate(240, 270)">
+        <rect x="-16" y="-130" width="32" height="130" rx="4" fill="url(#bar-local)" />
+        <rect x="-16" y="-170" width="32" height="38" rx="4" fill="url(#bar-online)" />
+        <text x="0" y="18" fill="#64748b" font-size="11" text-anchor="middle">Mié 16</text>
+      </g>
+      <!-- Jue -->
+      <g transform="translate(330, 270)">
+        <rect x="-16" y="-95" width="32" height="95" rx="4" fill="url(#bar-local)" />
+        <rect x="-16" y="-140" width="32" height="43" rx="4" fill="url(#bar-online)" />
+        <text x="0" y="18" fill="#64748b" font-size="11" text-anchor="middle">Jue 17</text>
+      </g>
+      <!-- Vie -->
+      <g transform="translate(420, 270)">
+        <rect x="-16" y="-145" width="32" height="145" rx="4" fill="url(#bar-local)" />
+        <rect x="-16" y="-195" width="32" height="48" rx="4" fill="url(#bar-online)" />
+        <text x="0" y="18" fill="#64748b" font-size="11" text-anchor="middle">Vie 18</text>
+      </g>
+      <!-- Sab -->
+      <g transform="translate(510, 270)">
+        <rect x="-16" y="-160" width="32" height="160" rx="4" fill="url(#bar-local)" />
+        <rect x="-16" y="-210" width="32" height="48" rx="4" fill="url(#bar-online)" />
+        <text x="0" y="18" fill="#64748b" font-size="11" text-anchor="middle">Sáb 19</text>
+      </g>
+      <!-- Dom -->
+      <g transform="translate(600, 270)">
+        <rect x="-16" y="-70" width="32" height="70" rx="4" fill="url(#bar-local)" />
+        <rect x="-16" y="-105" width="32" height="33" rx="4" fill="url(#bar-online)" />
+        <text x="0" y="18" fill="#64748b" font-size="11" text-anchor="middle">Dom 20</text>
+      </g>
+    </g>
+
+    <!-- Right: Resumen Operativo Card (Width: 372) -->
+    <g transform="translate(744, 230)" filter="url(#card-shadow)">
+      <rect width="368" height="320" rx="12" fill="#ffffff" stroke="#e2e8f0" stroke-width="1" />
+      
+      <text x="24" y="32" fill="#567c8d" font-size="10" font-weight="700" letter-spacing="1">OPERACIÓN</text>
+      <text x="24" y="56" fill="#0f172a" font-size="17" font-weight="700">Resumen operativo</text>
+      <text x="24" y="74" fill="#64748b" font-size="12">Cobros y disponibilidad de catálogo</text>
+
+      <!-- Operation rows -->
+      <g transform="translate(24, 94)">
+        <!-- Row 1 -->
+        <rect width="320" height="38" rx="6" fill="#f8fafc" />
+        <text x="14" y="24" fill="#475569" font-size="13" font-weight="500">💵 Efectivo en caja</text>
+        <text x="306" y="24" fill="#0f172a" font-size="13" font-weight="700" text-anchor="end">$ 310.000</text>
+      </g>
+
+      <g transform="translate(24, 138)">
+        <!-- Row 2 -->
+        <rect width="320" height="38" rx="6" fill="#f8fafc" />
+        <text x="14" y="24" fill="#475569" font-size="13" font-weight="500">💳 Mercado Pago / Tarjetas</text>
+        <text x="306" y="24" fill="#0f172a" font-size="13" font-weight="700" text-anchor="end">$ 940.000</text>
+      </g>
+
+      <g transform="translate(24, 182)">
+        <!-- Row 3 -->
+        <rect width="320" height="38" rx="6" fill="#f8fafc" />
+        <text x="14" y="24" fill="#475569" font-size="13" font-weight="500">📦 Productos activos</text>
+        <text x="306" y="24" fill="#0ea5e9" font-size="13" font-weight="700" text-anchor="end">39</text>
+      </g>
+
+      <g transform="translate(24, 226)">
+        <!-- Row 4 -->
+        <rect width="320" height="38" rx="6" fill="#fef2f2" />
+        <text x="14" y="24" fill="#991b1b" font-size="13" font-weight="500">⚠️ Variantes con stock bajo</text>
+        <text x="306" y="24" fill="#dc2626" font-size="13" font-weight="700" text-anchor="end">4</text>
+      </g>
+
+      <text x="24" y="295" fill="#0284c7" font-size="12" font-weight="600">Ver reportes detallados →</text>
+    </g>
+
+    <!-- ==================== BOTTOM ROW: ACCESOS RÁPIDOS & REQUIEREN ATENCIÓN ==================== -->
+    <!-- Left: Accesos rápidos (Width: 420) -->
+    <g transform="translate(0, 570)" filter="url(#card-shadow)">
+      <rect width="420" height="270" rx="12" fill="#ffffff" stroke="#e2e8f0" stroke-width="1" />
+      <text x="24" y="32" fill="#567c8d" font-size="10" font-weight="700" letter-spacing="1">ACCIONES FRECUENTES</text>
+      <text x="24" y="56" fill="#0f172a" font-size="17" font-weight="700">Accesos rápidos</text>
+
+      <!-- Action 1: POS -->
+      <g transform="translate(24, 76)">
+        <rect width="372" height="48" rx="8" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" />
+        <circle cx="28" cy="24" r="14" fill="#e0f2fe" />
+        <text x="28" y="29" fill="#0369a1" font-size="14" text-anchor="middle">🛒</text>
+        <text x="52" y="22" fill="#0f172a" font-size="13" font-weight="700">Nueva venta en el local</text>
+        <text x="52" y="38" fill="#64748b" font-size="11">Terminal de punto de venta (POS)</text>
+        <text x="350" y="29" fill="#94a3b8" font-size="14">→</text>
+      </g>
+
+      <!-- Action 2: Inventario -->
+      <g transform="translate(24, 134)">
+        <rect width="372" height="48" rx="8" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" />
+        <circle cx="28" cy="24" r="14" fill="#fef3c7" />
+        <text x="28" y="29" fill="#b45309" font-size="14" text-anchor="middle">📦</text>
+        <text x="52" y="22" fill="#0f172a" font-size="13" font-weight="700">Gestión de inventario</text>
+        <text x="52" y="38" fill="#64748b" font-size="11">Actualizar stock y movimientos</text>
+        <text x="350" y="29" fill="#94a3b8" font-size="14">→</text>
+      </g>
+
+      <!-- Action 3: Pedidos -->
+      <g transform="translate(24, 192)">
+        <rect width="372" height="48" rx="8" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" />
+        <circle cx="28" cy="24" r="14" fill="#eef2ff" />
+        <text x="28" y="29" fill="#4338ca" font-size="14" text-anchor="middle">📑</text>
+        <text x="52" y="22" fill="#0f172a" font-size="13" font-weight="700">Ver pedidos pendientes</text>
+        <text x="52" y="38" fill="#64748b" font-size="11">3 compras listas para despachar</text>
+        <text x="350" y="29" fill="#94a3b8" font-size="14">→</text>
+      </g>
+    </g>
+
+    <!-- Right: Tabla Requieren Atención (Width: 668) -->
+    <g transform="translate(444, 570)" filter="url(#card-shadow)">
+      <rect width="668" height="270" rx="12" fill="#ffffff" stroke="#e2e8f0" stroke-width="1" />
+      <text x="24" y="32" fill="#567c8d" font-size="10" font-weight="700" letter-spacing="1">INVENTARIO</text>
+      <text x="24" y="56" fill="#0f172a" font-size="17" font-weight="700">Requieren atención</text>
+      <text x="644" y="52" fill="#0284c7" font-size="12" font-weight="600" text-anchor="end">Ver inventario completo →</text>
+
+      <!-- Table Header -->
+      <g transform="translate(24, 76)">
+        <rect width="620" height="30" rx="4" fill="#f8fafc" />
+        <text x="12" y="20" fill="#64748b" font-size="11" font-weight="700">PRODUCTO</text>
+        <text x="260" y="20" fill="#64748b" font-size="11" font-weight="700">TALLE</text>
+        <text x="380" y="20" fill="#64748b" font-size="11" font-weight="700">STOCK</text>
+        <text x="520" y="20" fill="#64748b" font-size="11" font-weight="700">ESTADO</text>
+      </g>
+
+      <!-- Table Rows -->
+      <!-- Row 1 -->
+      <g transform="translate(24, 114)">
+        <text x="12" y="16" fill="#0f172a" font-size="13" font-weight="600">Remera Manga Corta Performance</text>
+        <text x="260" y="16" fill="#475569" font-size="13">S</text>
+        <text x="380" y="16" fill="#dc2626" font-size="13" font-weight="700">2 <tspan fill="#94a3b8" font-size="11" font-weight="400">/ mín. 5</tspan></text>
+        <rect x="520" y="2" width="76" height="20" rx="10" fill="#fef2f2" />
+        <text x="558" y="16" fill="#dc2626" font-size="10" font-weight="700" text-anchor="middle">Stock bajo</text>
+      </g>
+      <line x1="24" y1="142" x2="644" y2="142" stroke="#f1f5f9" stroke-width="1" />
+
+      <!-- Row 2 -->
+      <g transform="translate(24, 150)">
+        <text x="12" y="16" fill="#0f172a" font-size="13" font-weight="600">Calza Compresión Tenis</text>
+        <text x="260" y="16" fill="#475569" font-size="13">M</text>
+        <text x="380" y="16" fill="#dc2626" font-size="13" font-weight="700">1 <tspan fill="#94a3b8" font-size="11" font-weight="400">/ mín. 5</tspan></text>
+        <rect x="520" y="2" width="76" height="20" rx="10" fill="#fef2f2" />
+        <text x="558" y="16" fill="#dc2626" font-size="10" font-weight="700" text-anchor="middle">Stock bajo</text>
+      </g>
+      <line x1="24" y1="178" x2="644" y2="178" stroke="#f1f5f9" stroke-width="1" />
+
+      <!-- Row 3 -->
+      <g transform="translate(24, 186)">
+        <text x="12" y="16" fill="#0f172a" font-size="13" font-weight="600">Polo Crema Classic Stretch</text>
+        <text x="260" y="16" fill="#475569" font-size="13">XL</text>
+        <text x="380" y="16" fill="#991b1b" font-size="13" font-weight="700">0 <tspan fill="#94a3b8" font-size="11" font-weight="400">/ mín. 3</tspan></text>
+        <rect x="520" y="2" width="76" height="20" rx="10" fill="#450a0a" />
+        <text x="558" y="16" fill="#fca5a5" font-size="10" font-weight="700" text-anchor="middle">Agotado</text>
+      </g>
+      <line x1="24" y1="214" x2="644" y2="214" stroke="#f1f5f9" stroke-width="1" />
+
+      <!-- Row 4 -->
+      <g transform="translate(24, 222)">
+        <text x="12" y="16" fill="#0f172a" font-size="13" font-weight="600">Top Remo sin Mangas</text>
+        <text x="260" y="16" fill="#475569" font-size="13">XS</text>
+        <text x="380" y="16" fill="#dc2626" font-size="13" font-weight="700">3 <tspan fill="#94a3b8" font-size="11" font-weight="400">/ mín. 5</tspan></text>
+        <rect x="520" y="2" width="76" height="20" rx="10" fill="#fef2f2" />
+        <text x="558" y="16" fill="#dc2626" font-size="10" font-weight="700" text-anchor="middle">Stock bajo</text>
+      </g>
+    </g>
+  </g>
+</svg>
