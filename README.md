@@ -41,11 +41,15 @@ Completá `frontend/.env` con la URL y la clave anon pública que ya aparecen en
 
 La interfaz React usa el proxy de Vite para enviar `/api` a `http://localhost:3000`. El backend requiere `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `MP_ACCESS_TOKEN`, `FRONT_URL` y opcionalmente `CORS_ORIGINS`. No copies secretos al frontend.
 
-El módulo de empleados invita cuentas mediante el proveedor de correo de Supabase. Para habilitar todas las pantallas administrativas, compará primero el resultado de `docs/03-Desarrollo/consulta-esquema-supabase-readonly.sql` con tu instancia de desarrollo. Luego ejecutá en el SQL Editor, en este orden, `20261018_001_inventory_pos.sql`, `20261018_002_projects.sql`, `20261020_003_admin_operations.sql`, `20261020_004_pos_cash_payments.sql`, `20261020_005_variant_archiving.sql` y `20261020_006_project_archiving.sql`. El registro público no puede asignar roles. Para otorgar el primer rol administrador a una cuenta Auth, reemplazá el correo de ejemplo en `database/operations/assign_first_admin.sql` y ejecutalo en el SQL Editor.
+El módulo de empleados invita cuentas mediante el proveedor de correo de Supabase. Para aplicar y verificar las migraciones en Supabase:
+1. Podés verificar el estado de las tablas y permisos ejecutando: `npm run db:check`.
+2. Para aplicar todas las migraciones en un solo paso, copiá y ejecutá en el **SQL Editor** de Supabase: [run_all_migrations.sql](database/migrations/run_all_migrations.sql).
+3. Si tus tablas ya están creadas pero el panel o backend muestran errores de permisos (*permission denied 42501* o *RLS bloqueado*), ejecutá en el SQL Editor: [20261020_007_fix_permissions_and_rls.sql](database/migrations/20261020_007_fix_permissions_and_rls.sql).
+4. Asegurate de que `SUPABASE_SERVICE_KEY` en `backend/.env` y en las variables de entorno de Vercel contenga la clave secreta `service_role` de Supabase (Project Settings > API > `service_role`), no la clave `anon`.
 
 Para generar la versión de producción de la interfaz: `cd frontend; npm run build`. Las migraciones se entregan como archivos revisables; no se aplican automáticamente. Validalas primero en desarrollo y respaldá la base antes de trasladar cambios a producción.
 
-La API escucha en `http://localhost:3000`; Vite inicia la interfaz en la URL local que informa la consola. Los scripts de conveniencia disponibles desde la raíz son `npm run dev:backend`, `npm run dev:frontend`, `npm run test:backend` y `npm run build:frontend`.
+La API escucha en `http://localhost:3000`; Vite inicia la interfaz en la URL local que informa la consola. Los scripts de conveniencia disponibles desde la raíz son `npm run dev:backend`, `npm run dev:frontend`, `npm run test:backend`, `npm run build:frontend` y `npm run db:check`.
 
 ## Documentación de la actividad
 
