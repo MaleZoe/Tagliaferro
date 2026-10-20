@@ -205,7 +205,7 @@ function App() {
           <>
             <section className="hero" id="hero">
               <div className="hero-content"><p className="hero-eyebrow">COLECCIÓN OTOÑO / INVIERNO 2026</p><h1 className="hero-title">ELEGANCIA<br />EN CADA<br />MOVIMIENTO</h1><p className="hero-subtitle">Donde el estilo se encuentra con el rendimiento</p><div className="hero-actions"><a href="#novedades" className="btn btn-primary">VER COLECCIÓN</a><a href="#deportes" className="btn btn-outline-dark">EXPLORAR DEPORTES</a></div></div>
-              <div className="hero-image"><div className="hero-img-placeholder"><div className="hero-sport-badge">NUEVA TEMPORADA</div><div className="hero-deco-circle" /></div></div>
+              <div className="hero-image"><div className="hero-img-placeholder"><img className="hero-main-image" src="/img/coll_mujer.jpg" alt="Jugadora de tenis en una cancha de polvo de ladrillo" /><div className="hero-sport-badge">NUEVA TEMPORADA</div><div className="hero-deco-circle" /></div></div>
               <div className="hero-indicators"><span className="indicator active" /><span className="indicator" /><span className="indicator" /></div>
             </section>
             <section className="trust-badges">
