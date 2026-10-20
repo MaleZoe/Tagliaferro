@@ -23,12 +23,14 @@ export function readPosDraft(storage, cryptoApi, ownerId) {
     const draft = JSON.parse(storage.getItem(keys.pending) || 'null');
     const validKey = typeof draft?.requestKey === 'string' && UUID_PATTERN.test(draft.requestKey);
     const validMethod = ['efectivo', 'tarjeta', 'transferencia', 'otro'].includes(draft?.paymentMethod);
+    const validPayments = draft?.payments === undefined || (Array.isArray(draft.payments) && draft.payments.length > 0 && draft.payments.length <= 4 && draft.payments.every((payment) => ['efectivo', 'tarjeta', 'transferencia', 'otro'].includes(payment.method) && Number.isFinite(Number(payment.amount)) && Number(payment.amount) > 0));
+    const validDiscount = draft?.discount === undefined || (Number.isFinite(Number(draft.discount)) && Number(draft.discount) >= 0);
     const validItems = Array.isArray(draft?.items) && draft.items.length > 0 && draft.items.every((item) =>
       Number.isSafeInteger(item.variantId) && item.variantId > 0 && Number.isInteger(item.qty) && item.qty > 0 &&
       typeof item.name === 'string' && typeof item.size === 'string' && Number.isFinite(Number(item.price)));
-    if (validKey && validMethod && validItems) return { requestKey: draft.requestKey, paymentMethod: draft.paymentMethod, cart: draft.items, pending: true };
+    if (validKey && validMethod && validItems && validPayments && validDiscount) return { requestKey: draft.requestKey, paymentMethod: draft.paymentMethod, payments: draft.payments || [], discount: Number(draft.discount) || 0, cart: draft.items, pending: true };
   } catch { /* Un borrador corrupto se descarta y se inicia una operación nueva. */ }
-  return { requestKey: getOrCreateRequestKey(storage, cryptoApi, ownerId), paymentMethod: 'efectivo', cart: [], pending: false };
+  return { requestKey: getOrCreateRequestKey(storage, cryptoApi, ownerId), paymentMethod: 'efectivo', payments: [], discount: 0, cart: [], pending: false };
 }
 
 // Guarda el carrito antes del POST para poder reintentar con la misma clave si se pierde la respuesta.
@@ -36,6 +38,8 @@ export function savePosDraft(storage, operation, ownerId) {
   storage.setItem(storageKeys(ownerId).pending, JSON.stringify({
     requestKey: operation.requestKey,
     paymentMethod: operation.paymentMethod,
+    payments: operation.payments || [],
+    discount: Number(operation.discount) || 0,
     items: operation.items,
   }));
 }

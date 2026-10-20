@@ -1,6 +1,3 @@
-# Guion de exposición — Sportshop / Élite Sport
-
-Duración sugerida: 5 a 7 minutos. El guion describe el código del repositorio y separa lo que falta validar con servicios externos.
 
 ## Apertura
 

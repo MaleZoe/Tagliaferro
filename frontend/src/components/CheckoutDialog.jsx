@@ -25,7 +25,7 @@ export default function CheckoutDialog({ cart, open, onClose, onPaymentCreated }
     setBusy(true);
     try {
       const token = await auth.getAccessToken();
-      const result = await createOrder(token, { items: cart.map(({ id, size, qty }) => ({ id, size, qty })), envio: address });
+      const result = await createOrder(token, { items: cart.map(({ id, variantId, size, qty }) => ({ id, variantId, size, qty })), envio: address });
       if (!result.init_point || !Number.isInteger(Number(result.orderId))) throw new Error('La API no devolvió un enlace de pago válido.');
       onPaymentCreated(result);
     } catch (requestError) {

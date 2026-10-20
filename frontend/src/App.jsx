@@ -1,6 +1,6 @@
 // Compone la tienda React: catálogo conectado a la API, detalle de producto y carrito local.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, Route, Routes } from 'react-router-dom';
+import { Link, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { getProducts } from './services/catalog.js';
 import { useAuth } from './contexts/AuthContext.jsx';
 import AuthDialog from './components/AuthDialog.jsx';
@@ -11,6 +11,12 @@ import { EmployeesPage, InventoryPage, PosPage, ProtectedAdminPage, ProtectedSta
 import ProjectsPage from './pages/ProjectsPage.jsx';
 import ReportsPage from './pages/ReportsPage.jsx';
 import CustomersPage from './pages/CustomersPage.jsx';
+import AdminShell from './components/AdminShell.jsx';
+import DashboardPage from './pages/DashboardPage.jsx';
+import AdminOrdersPage from './pages/AdminOrdersPage.jsx';
+import SuppliersPage from './pages/SuppliersPage.jsx';
+import SettingsPage from './pages/SettingsPage.jsx';
+import CashPage from './pages/CashPage.jsx';
 
 const sports = ['all', 'tenis', 'golf', 'equitacion', 'natacion', 'remo', 'hockey'];
 const sportLabels = { all: 'Todos', tenis: 'Tenis', golf: 'Golf', equitacion: 'Equitación', natacion: 'Natación', remo: 'Remo', hockey: 'Hockey' };
@@ -20,13 +26,16 @@ const money = (value) => new Intl.NumberFormat('es-AR', { style: 'currency', cur
 function readSavedCart() {
   try {
     const value = JSON.parse(localStorage.getItem('es_cart') || '[]');
-    return Array.isArray(value) ? value.filter((item) => item && Number.isInteger(Number(item.id)) && typeof item.size === 'string' && Number.isInteger(item.qty) && item.qty >= 1 && item.qty <= 10 && Number.isFinite(Number(item.price))) : [];
+    return Array.isArray(value) ? value.filter((item) => item && Number.isInteger(Number(item.id)) && (item.variantId == null || Number.isInteger(Number(item.variantId))) && typeof item.size === 'string' && Number.isInteger(item.qty) && item.qty >= 1 && item.qty <= 10 && Number.isFinite(Number(item.price))) : [];
   } catch {
     return [];
   }
 }
 
 function App() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isAdminArea = ['/admin', '/inventario', '/pos', '/caja', '/movimientos-stock', '/ventas-online', '/pedidos', '/clientes', '/proveedores', '/reportes', '/empleados', '/proyectos', '/configuracion'].includes(location.pathname);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -34,6 +43,7 @@ function App() {
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(null);
   const [size, setSize] = useState('');
+  const [color, setColor] = useState('');
   const [cart, setCart] = useState(readSavedCart);
   const [cartOpen, setCartOpen] = useState(false);
   const [notice, setNotice] = useState('');
@@ -45,7 +55,20 @@ function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [announcementVisible, setAnnouncementVisible] = useState(true);
   const paymentProcessed = useRef('');
+  const previousRole = useRef(null);
   const auth = useAuth();
+
+  useEffect(() => {
+    document.body.classList.toggle('admin-page-active', isAdminArea);
+    return () => document.body.classList.remove('admin-page-active');
+  }, [isAdminArea]);
+
+  // Cuando la API resuelve que la cuenta recién autenticada es administradora, abre el panel.
+  useEffect(() => {
+    const wasAdmin = previousRole.current === 'administrador';
+    previousRole.current = auth.roleReady ? auth.role : null;
+    if (auth.user && auth.roleReady && auth.role === 'administrador' && !wasAdmin) navigate('/admin', { replace: true });
+  }, [auth.user, auth.role, auth.roleReady, navigate]);
 
   // Supabase vuelve con type=recovery después de validar el enlace enviado al correo.
   useEffect(() => {
@@ -113,21 +136,27 @@ function App() {
 
   const cartCount = cart.reduce((sum, item) => sum + item.qty, 0);
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const selectedSizeVariants = (selected?.variants || []).filter((variant) => variant.size === size);
+  const selectedColorVariants = selectedSizeVariants.filter((variant) => variant.color === color);
+  const activeVariant = selectedColorVariants.find((variant) => variant.stock > 0) || selectedColorVariants[0];
+  const colorsForSize = [...new Set(selectedSizeVariants.map((variant) => variant.color).filter(Boolean))];
 
   function openProduct(product) {
     setSelected(product);
-    setSize(product.sizes?.find((item) => Number(product.stock?.[item] ?? 0) > 0) || '');
+    const firstVariant = product.variants?.find((variant) => Number(variant.stock) > 0);
+    setSize(firstVariant?.size || product.sizes?.find((item) => Number(product.stock?.[item] ?? 0) > 0) || '');
+    setColor(firstVariant?.color || '');
   }
 
   // Añade una variante identificada por producto y talle; el checkout vuelve a validar existencia en el backend.
-  function addToCart(product, selectedSize) {
+  function addToCart(product, selectedSize, selectedVariant) {
     if (!selectedSize) return;
-    const available = Math.min(10, Number(product.stock?.[selectedSize]) || 0);
+    const available = Math.min(10, Number(selectedVariant?.stock ?? product.stock?.[selectedSize]) || 0);
     if (available < 1) return;
     setCart((current) => {
-      const existing = current.find((item) => item.id === product.id && item.size === selectedSize);
+      const existing = current.find((item) => selectedVariant?.id ? item.variantId === selectedVariant.id : item.id === product.id && item.size === selectedSize && !item.variantId);
       if (existing) return current.map((item) => item === existing ? { ...item, qty: Math.min(available, item.qty + 1) } : item);
-      return [...current, { id: product.id, name: product.name, img: product.img, price: product.price, size: selectedSize, qty: 1 }];
+      return [...current, { id: product.id, variantId: selectedVariant?.id, name: product.name, img: product.img, price: product.price, size: selectedSize, color: selectedVariant?.color || '', qty: 1 }];
     });
     setSelected(null);
     setNotice('Producto agregado al carrito');
@@ -136,14 +165,15 @@ function App() {
 
   function updateQuantity(item, delta) {
     const product = products.find((entry) => entry.id === item.id);
-    const available = Math.min(10, Number(product?.stock?.[item.size]) || 0);
-    setCart((current) => current.map((line) => line.id === item.id && line.size === item.size
+    const variant = product?.variants?.find((entry) => entry.id === item.variantId);
+    const available = Math.min(10, Number(variant?.stock ?? product?.stock?.[item.size]) || 0);
+    setCart((current) => current.map((line) => (item.variantId ? line.variantId === item.variantId : line.id === item.id && line.size === item.size)
       ? { ...line, qty: Math.min(available || line.qty, Math.max(1, line.qty + delta)) }
       : line));
   }
 
   function removeFromCart(item) {
-    setCart((current) => current.filter((line) => line.id !== item.id || line.size !== item.size));
+    setCart((current) => current.filter((line) => item.variantId ? line.variantId !== item.variantId : line.id !== item.id || line.size !== item.size));
   }
 
   const productCards = (items) => items.map((product) => (
@@ -184,7 +214,7 @@ function App() {
       <header className="header" id="header">
         <button className="hamburger" aria-label="Abrir menú" aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(true)}><span /><span /><span /></button>
         <nav className="nav-left" aria-label="Navegación principal"><a href="/#deportes">DEPORTES</a><a href="/#colecciones">COLECCIONES</a><a href="/#novedades">NOVEDADES</a><a href="/#nosotros">NOSOTROS</a></nav>
-        <Link className="logo" to="/">ÉLITE SPORT</Link>
+        <Link className="logo" to="/" aria-label="Élite Sport, inicio"><img src="/img/logo-elite-sport.png" alt="Élite Sport" /></Link>
         <div className="nav-right">
           <button className="nav-icon-btn" aria-label="Buscar productos" onClick={() => setSearchOpen(true)}><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg></button>
           <div className="account-menu-wrap">
@@ -242,25 +272,32 @@ function App() {
           </>
         } />
         <Route path="/catalogo" element={<>{catalogContent('CATÁLOGO DEPORTIVO')}</>} />
-        <Route path="/inventario" element={<ProtectedStaffPage><InventoryPage /></ProtectedStaffPage>} />
-        <Route path="/pos" element={<ProtectedStaffPage><PosPage /></ProtectedStaffPage>} />
-        <Route path="/proyectos" element={<ProtectedStaffPage><ProjectsPage /></ProtectedStaffPage>} />
-        <Route path="/empleados" element={<ProtectedAdminPage><EmployeesPage /></ProtectedAdminPage>} />
-        <Route path="/reportes" element={<ProtectedAdminPage><ReportsPage /></ProtectedAdminPage>} />
-        <Route path="/clientes" element={<ProtectedAdminPage><CustomersPage /></ProtectedAdminPage>} />
+        <Route path="/admin" element={<ProtectedAdminPage><AdminShell><DashboardPage /></AdminShell></ProtectedAdminPage>} />
+        <Route path="/inventario" element={<ProtectedStaffPage><AdminShell><InventoryPage /></AdminShell></ProtectedStaffPage>} />
+        <Route path="/movimientos-stock" element={<ProtectedStaffPage><AdminShell><InventoryPage /></AdminShell></ProtectedStaffPage>} />
+        <Route path="/caja" element={<ProtectedStaffPage><AdminShell><CashPage /></AdminShell></ProtectedStaffPage>} />
+        <Route path="/pos" element={<ProtectedStaffPage><AdminShell><PosPage /></AdminShell></ProtectedStaffPage>} />
+        <Route path="/pedidos" element={<ProtectedAdminPage><AdminShell><AdminOrdersPage /></AdminShell></ProtectedAdminPage>} />
+        <Route path="/ventas-online" element={<ProtectedAdminPage><AdminShell><AdminOrdersPage onlineOnly /></AdminShell></ProtectedAdminPage>} />
+        <Route path="/proveedores" element={<ProtectedAdminPage><AdminShell><SuppliersPage /></AdminShell></ProtectedAdminPage>} />
+        <Route path="/configuracion" element={<ProtectedAdminPage><AdminShell><SettingsPage /></AdminShell></ProtectedAdminPage>} />
+        <Route path="/proyectos" element={<ProtectedStaffPage><AdminShell><ProjectsPage /></AdminShell></ProtectedStaffPage>} />
+        <Route path="/empleados" element={<ProtectedAdminPage><AdminShell><EmployeesPage /></AdminShell></ProtectedAdminPage>} />
+        <Route path="/reportes" element={<ProtectedAdminPage><AdminShell><ReportsPage /></AdminShell></ProtectedAdminPage>} />
+        <Route path="/clientes" element={<ProtectedAdminPage><AdminShell><CustomersPage /></AdminShell></ProtectedAdminPage>} />
         <Route path="*" element={<main className="products-section"><h1 className="section-title">No encontramos esa página</h1><Link className="btn btn-primary" to="/">VOLVER A LA TIENDA</Link></main>} />
       </Routes>
 
-      <footer className="footer"><div className="footer-top"><div className="footer-brand"><h3 className="footer-logo">ÉLITE SPORT</h3><p>Indumentaria deportiva premium para quienes viven el deporte con pasión y dedicación.</p><div className="social-links"><a href="#" aria-label="Instagram"><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" /></svg></a><a href="#" aria-label="Facebook"><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" /></svg></a><a href="#" aria-label="TikTok"><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" /></svg></a></div></div><div className="footer-col"><h4>CATÁLOGO</h4><ul><li><a href="/#deportes">Tenis</a></li><li><a href="/#deportes">Golf</a></li><li><a href="/#deportes">Equitación</a></li><li><a href="/#deportes">Rugby</a></li><li><a href="/#deportes">Natación</a></li><li><a href="/#deportes">Remo</a></li></ul></div><div className="footer-col"><h4>MÁS DEPORTES</h4><ul><li><a href="/#deportes">Hockey</a></li><li><a href="/#deportes">Pádel</a></li><li><a href="/#deportes">Polo</a></li><li><a href="/#deportes">Pilates / Yoga</a></li><li><a href="/#deportes">Gimnasio</a></li></ul></div><div className="footer-col"><h4>AYUDA</h4><ul><li><button onClick={() => setAuthDialog({ open: true, mode: 'login' })}>Mi cuenta</button></li><li><button onClick={() => setOrdersOpen(true)}>Mis pedidos</button></li><li><a href="#">Guía de talles</a></li><li><a href="#">Envíos</a></li><li><a href="#">Devoluciones</a></li><li><a href="#">Contacto</a></li></ul></div><div className="footer-col"><h4>CONTACTO</h4><ul className="contact-list"><li><svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.9a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.73 16a2 2 0 0 1 .27.92z" /></svg> +54 11 4567-8900</li><li><svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg> hola@elitesport.com.ar</li><li><svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg> Av. del Libertador 1234, CABA</li></ul></div></div><div className="footer-bottom"><p>© 2026 Élite Sport. Todos los derechos reservados.</p><div className="footer-legal"><a href="#">Política de privacidad</a><a href="#">Términos y condiciones</a></div></div></footer>
+      <footer className="footer"><div className="footer-top"><div className="footer-brand"><h3 className="footer-logo"><img src="/img/logo-elite-sport.png" alt="Élite Sport" /></h3><p>Indumentaria deportiva premium para quienes viven el deporte con pasión y dedicación.</p><div className="social-links"><a href="#" aria-label="Instagram"><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" /></svg></a><a href="#" aria-label="Facebook"><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" /></svg></a><a href="#" aria-label="TikTok"><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" /></svg></a></div></div><div className="footer-col"><h4>CATÁLOGO</h4><ul><li><a href="/#deportes">Tenis</a></li><li><a href="/#deportes">Golf</a></li><li><a href="/#deportes">Equitación</a></li><li><a href="/#deportes">Rugby</a></li><li><a href="/#deportes">Natación</a></li><li><a href="/#deportes">Remo</a></li></ul></div><div className="footer-col"><h4>MÁS DEPORTES</h4><ul><li><a href="/#deportes">Hockey</a></li><li><a href="/#deportes">Pádel</a></li><li><a href="/#deportes">Polo</a></li><li><a href="/#deportes">Pilates / Yoga</a></li><li><a href="/#deportes">Gimnasio</a></li></ul></div><div className="footer-col"><h4>AYUDA</h4><ul><li><button onClick={() => setAuthDialog({ open: true, mode: 'login' })}>Mi cuenta</button></li><li><button onClick={() => setOrdersOpen(true)}>Mis pedidos</button></li><li><a href="#">Guía de talles</a></li><li><a href="#">Envíos</a></li><li><a href="#">Devoluciones</a></li><li><a href="#">Contacto</a></li></ul></div><div className="footer-col"><h4>CONTACTO</h4><ul className="contact-list"><li><svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.9a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.73 16a2 2 0 0 1 .27.92z" /></svg> +54 11 4567-8900</li><li><svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg> hola@elitesport.com.ar</li><li><svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg> Av. del Libertador 1234, CABA</li></ul></div></div><div className="footer-bottom"><p>© 2026 Élite Sport. Todos los derechos reservados.</p><div className="footer-legal"><a href="#">Política de privacidad</a><a href="#">Términos y condiciones</a></div></div></footer>
 
       <div className={`search-panel ${searchOpen ? 'open' : ''}`} aria-hidden={!searchOpen}><div className="search-panel-inner"><input id="search-input" type="search" placeholder="Buscar productos, deportes..." value={query} onChange={(event) => setQuery(event.target.value)} autoFocus={searchOpen} /><button className="search-close" onClick={() => setSearchOpen(false)} aria-label="Cerrar búsqueda">×</button></div>{query.trim() && <div className="search-results">{filtered.slice(0, 6).map((product) => <button className="search-result-item" key={product.id} onClick={() => { setSearchOpen(false); openProduct(product); }}><span className="search-result-img"><img src={product.img} alt="" /></span><span className="search-result-name">{product.name}<small className="search-result-sport">{sportLabels[product.sport] || product.sport}</small></span><span className="search-result-price">{money(product.price)}</span></button>)}{filtered.length === 0 && <p className="search-no-results">No encontramos productos con esa búsqueda.</p>}</div>}</div>
 
       <div className={`overlay ${mobileMenuOpen ? 'active' : ''}`} onClick={() => setMobileMenuOpen(false)} />
       <aside className={`mobile-menu ${mobileMenuOpen ? 'open' : ''}`} aria-hidden={!mobileMenuOpen}><button className="panel-close" onClick={() => setMobileMenuOpen(false)} aria-label="Cerrar menú">×</button><nav className="mobile-nav"><a className="mobile-nav-link" href="/#deportes" onClick={() => setMobileMenuOpen(false)}>Deportes</a><a className="mobile-nav-link" href="/#colecciones" onClick={() => setMobileMenuOpen(false)}>Colecciones</a><a className="mobile-nav-link" href="/#novedades" onClick={() => setMobileMenuOpen(false)}>Novedades</a><a className="mobile-nav-link" href="/#nosotros" onClick={() => setMobileMenuOpen(false)}>Nosotros</a><hr className="mobile-nav-divider" />{['administrador', 'empleado'].includes(auth.role) && <><Link className="mobile-nav-link" to="/inventario" onClick={() => setMobileMenuOpen(false)}>Inventario</Link><Link className="mobile-nav-link" to="/pos" onClick={() => setMobileMenuOpen(false)}>Punto de venta</Link><Link className="mobile-nav-link" to="/proyectos" onClick={() => setMobileMenuOpen(false)}>Proyectos</Link></>}{auth.role === 'administrador' && <><Link className="mobile-nav-link" to="/clientes" onClick={() => setMobileMenuOpen(false)}>Clientes</Link><Link className="mobile-nav-link" to="/empleados" onClick={() => setMobileMenuOpen(false)}>Empleados</Link><Link className="mobile-nav-link" to="/reportes" onClick={() => setMobileMenuOpen(false)}>Reportes</Link></>}</nav></aside>
 
-      {selected && <div className="react-scrim" onClick={() => setSelected(null)}><section className="react-modal modal-product" role="dialog" aria-modal="true" aria-labelledby="selected-product-name" onClick={(event) => event.stopPropagation()}><button className="react-modal-close" onClick={() => setSelected(null)} aria-label="Cerrar">×</button><div className="product-modal-inner"><div className="product-modal-img"><img src={selected.img} alt={selected.name} /></div><div className="product-modal-info"><p className="product-modal-sport">{sportLabels[selected.sport] || selected.sport}</p><h2 className="product-modal-name" id="selected-product-name">{selected.name}</h2><p className="product-modal-desc">{selected.desc}</p><div className="product-modal-price-wrap"><strong className="product-modal-price">{money(selected.price)}</strong></div><fieldset className="react-sizes"><legend>Talle</legend>{(selected.sizes || []).map((item) => { const available = Number(selected.stock?.[item] ?? 0) > 0; return <button type="button" disabled={!available} aria-pressed={size === item} className={size === item ? 'selected' : ''} key={item} onClick={() => setSize(item)}>{item}</button>; })}</fieldset><button className="btn btn-primary btn-full" disabled={!size} onClick={() => addToCart(selected, size)}>AGREGAR AL CARRITO</button></div></div></section></div>}
+      {selected && <div className="react-scrim" onClick={() => setSelected(null)}><section className="react-modal modal-product" role="dialog" aria-modal="true" aria-labelledby="selected-product-name" onClick={(event) => event.stopPropagation()}><button className="react-modal-close" onClick={() => setSelected(null)} aria-label="Cerrar">×</button><div className="product-modal-inner"><div className="product-modal-img"><img src={selected.img} alt={selected.name} /></div><div className="product-modal-info"><p className="product-modal-sport">{sportLabels[selected.sport] || selected.sport}</p><h2 className="product-modal-name" id="selected-product-name">{selected.name}</h2><p className="product-modal-desc">{selected.desc}</p><div className="product-modal-price-wrap"><strong className="product-modal-price">{money(selected.price)}</strong></div><fieldset className="react-sizes"><legend>Talle</legend>{(selected.sizes || []).map((item) => { const variants = (selected.variants || []).filter((variant) => variant.size === item); const available = variants.length ? variants.some((variant) => variant.stock > 0) : Number(selected.stock?.[item] ?? 0) > 0; return <button type="button" disabled={!available} aria-pressed={size === item} className={size === item ? 'selected' : ''} key={item} onClick={() => { setSize(item); const first = variants.find((variant) => variant.stock > 0); setColor(first?.color || ''); }}>{item}</button>; })}</fieldset>{colorsForSize.length > 0 && <label className="react-color-select">Color<select value={color} onChange={(event) => setColor(event.target.value)}>{selectedSizeVariants.map((variant) => <option key={variant.id} value={variant.color} disabled={variant.stock < 1}>{variant.color || 'Sin color'} · stock {variant.stock}</option>)}</select></label>}<p className="react-variant-stock">Disponibles: {activeVariant?.stock ?? selected.stock?.[size] ?? 0}</p><button className="btn btn-primary btn-full" disabled={!size || (selected.variants?.length ? !activeVariant || activeVariant.stock < 1 : !Number(selected.stock?.[size]))} onClick={() => addToCart(selected, size, activeVariant)}>AGREGAR AL CARRITO</button></div></div></section></div>}
 
-      {cartOpen && <div className="react-scrim" onClick={() => setCartOpen(false)}><aside className="react-cart-panel" aria-label="Mi carrito" onClick={(event) => event.stopPropagation()}><div className="cart-header"><h2>Mi carrito ({cartCount})</h2><button className="panel-close" onClick={() => setCartOpen(false)} aria-label="Cerrar carrito">×</button></div>{cart.length === 0 ? <p className="cart-empty">Tu carrito está vacío.</p> : <><ul className="react-cart-lines">{cart.map((item) => <li key={`${item.id}-${item.size}`}><img src={item.img} alt="" /><div><strong>{item.name}</strong><small>Talle {item.size} · {money(item.price)}</small><div className="qty-control"><button className="qty-btn" onClick={() => updateQuantity(item, -1)} aria-label="Restar">−</button><span>{item.qty}</span><button className="qty-btn" onClick={() => updateQuantity(item, 1)} aria-label="Sumar">+</button><button className="react-remove" onClick={() => removeFromCart(item)}>Quitar</button></div></div></li>)}</ul><div className="react-cart-total"><span>Subtotal</span><strong>{money(cartTotal)}</strong><small>El precio definitivo y la disponibilidad se confirman con el servidor.</small></div><button className="btn btn-primary btn-full" onClick={() => { setCartOpen(false); if (!auth.user) setAuthDialog({ open: true, mode: 'login' }); else setCheckoutOpen(true); }}>CONTINUAR COMPRA</button></>}</aside></div>}
+      {cartOpen && <div className="react-scrim" onClick={() => setCartOpen(false)}><aside className="react-cart-panel" aria-label="Mi carrito" onClick={(event) => event.stopPropagation()}><div className="cart-header"><h2>Mi carrito ({cartCount})</h2><button className="panel-close" onClick={() => setCartOpen(false)} aria-label="Cerrar carrito">×</button></div>{cart.length === 0 ? <p className="cart-empty">Tu carrito está vacío.</p> : <><ul className="react-cart-lines">{cart.map((item) => <li key={item.variantId || `${item.id}-${item.size}`}><img src={item.img} alt="" /><div><strong>{item.name}</strong><small>Talle {item.size}{item.color ? ` · ${item.color}` : ''} · {money(item.price)}</small><div className="qty-control"><button className="qty-btn" onClick={() => updateQuantity(item, -1)} aria-label="Restar">−</button><span>{item.qty}</span><button className="qty-btn" onClick={() => updateQuantity(item, 1)} aria-label="Sumar">+</button><button className="react-remove" onClick={() => removeFromCart(item)}>Quitar</button></div></div></li>)}</ul><div className="react-cart-total"><span>Subtotal</span><strong>{money(cartTotal)}</strong><small>El precio definitivo y la disponibilidad se confirman con el servidor.</small></div><button className="btn btn-primary btn-full" onClick={() => { setCartOpen(false); if (!auth.user) setAuthDialog({ open: true, mode: 'login' }); else setCheckoutOpen(true); }}>CONTINUAR COMPRA</button></>}</aside></div>}
       <AuthDialog open={authDialog.open} initialMode={authDialog.mode} onClose={() => setAuthDialog((current) => ({ ...current, open: false }))} />
       <CheckoutDialog cart={cart} open={checkoutOpen} onClose={() => setCheckoutOpen(false)} onPaymentCreated={(result) => { localStorage.setItem(`es_pending_cart_${result.orderId}`, JSON.stringify(cart)); setCart([]); window.location.assign(result.init_point); }} />
       <OrdersPanel open={ordersOpen} onClose={() => setOrdersOpen(false)} />

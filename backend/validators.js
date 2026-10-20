@@ -6,7 +6,7 @@ const paymentMethods = ['efectivo', 'tarjeta', 'transferencia', 'otro'];
 function validarPedido(items, envio) {
   if (!Array.isArray(items) || items.length < 1 || items.length > 50) return 'El carrito está vacío o es inválido';
   if (!envio || ['direccion', 'ciudad', 'cp', 'telefono'].some((field) => !String(envio[field] || '').trim())) return 'Faltan datos de envío obligatorios';
-  if (items.some((item) => !Number.isInteger(item.id) || typeof item.size !== 'string' || !item.size.trim() || !Number.isInteger(item.qty) || item.qty < 1 || item.qty > 10)) return 'Hay un producto inválido en el carrito';
+  if (items.some((item) => !Number.isInteger(item.id) || (item.variantId !== undefined && (!Number.isInteger(item.variantId) || item.variantId < 1)) || typeof item.size !== 'string' || !item.size.trim() || !Number.isInteger(item.qty) || item.qty < 1 || item.qty > 10)) return 'Hay un producto inválido en el carrito';
   return null;
 }
 

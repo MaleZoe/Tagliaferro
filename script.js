@@ -14,6 +14,20 @@ function showToast(msg) {
   $('toast').classList.add('show');
   setTimeout(() => $('toast').classList.remove('show'), 2800);
 }
+function confirmInPage(message) {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.className = 'site-confirm-overlay';
+    overlay.innerHTML = `<section class="site-confirm" role="dialog" aria-modal="true" aria-labelledby="site-confirm-title"><h2 id="site-confirm-title">Confirmar acción</h2><p></p><div><button type="button" class="site-confirm-cancel">Cancelar</button><button type="button" class="site-confirm-ok">Vaciar carrito</button></div></section>`;
+    overlay.querySelector('p').textContent = message;
+    const finish = result => { overlay.remove(); resolve(result); };
+    overlay.addEventListener('click', event => { if (event.target === overlay) finish(false); });
+    overlay.querySelector('.site-confirm-cancel').addEventListener('click', () => finish(false));
+    overlay.querySelector('.site-confirm-ok').addEventListener('click', () => finish(true));
+    document.body.append(overlay);
+    overlay.querySelector('.site-confirm-cancel').focus();
+  });
+}
 function showFieldError(inputId, errId, msg) {
   const i = $(inputId); if (i) i.classList.add('invalid');
   const e = $(errId);   if (e) e.textContent = msg;
@@ -388,7 +402,7 @@ function openCart() { $('cart-panel').classList.add('open'); openOverlay(); rend
 $('cart-btn').addEventListener('click', openCart);
 $('cart-close').addEventListener('click', () => { closeCart(); closeOverlay(); });
 $('cart-empty-cta').addEventListener('click', () => { closeCart(); closeOverlay(); $('novedades').scrollIntoView({ behavior:'smooth' }); });
-$('clear-cart-btn').addEventListener('click', () => { if (confirm('¿Vaciar el carrito?')) { state.cart = []; saveCart(); updateCartBadge(); renderCart(); } });
+$('clear-cart-btn').addEventListener('click', async () => { if (await confirmInPage('¿Querés quitar todos los productos del carrito?')) { state.cart = []; saveCart(); updateCartBadge(); renderCart(); } });
 
 function addToCart(product, size, qty = 1) {
   const existing = state.cart.find(i => i.id === product.id && i.size === size);

@@ -5,10 +5,11 @@ Tienda deportiva con una migración gradual desde la versión original HTML/CSS/
 ## Estado de la migración
 
 - La versión original sigue siendo la página principal y conserva sus recursos.
-- `frontend/` contiene catálogo, autenticación React, recuperación de contraseña, checkout, pedidos, inventario, POS, proyectos/tareas, empleados y reportes.
+- `frontend/` contiene catálogo, autenticación React, recuperación de contraseña, checkout, pedidos, administración, inventario, POS, caja, clientes, proveedores, configuración, proyectos/tareas y reportes.
 - `backend/server.js` mantiene las rutas originales y publica rutas versionadas; los pedidos y movimientos usan verificaciones server-side.
-- Supabase Auth y PostgreSQL existentes se conservan. La migración aditiva de inventario/POS está en `database/migrations/` y debe revisarse antes de ejecutarse.
-- El CRUD de categorías y altas de productos con deporte queda pendiente porque no está documentada la columna que relaciona `products` con `sports`.
+- Supabase Auth y PostgreSQL existentes se conservan. El administrador opera sobre el mismo catálogo y stock que usa el ecommerce; no se crea un catálogo separado.
+- Las migraciones administrativas aditivas están en `database/migrations/`: `20261018_001_inventory_pos.sql`, `20261018_002_projects.sql`, `20261020_003_admin_operations.sql`, `20261020_004_pos_cash_payments.sql`, `20261020_005_variant_archiving.sql` y `20261020_006_project_archiving.sql`.
+- El alta de productos descubre la relación existente entre `products` y `sports` desde los metadatos de PostgreSQL. El color de cada variante se devuelve también al catálogo y al checkout.
 
 ## Requisitos
 
@@ -40,9 +41,9 @@ Completá `frontend/.env` con la URL y la clave anon pública que ya aparecen en
 
 La interfaz React usa el proxy de Vite para enviar `/api` a `http://localhost:3000`. El backend requiere `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `MP_ACCESS_TOKEN`, `FRONT_URL` y opcionalmente `CORS_ORIGINS`. No copies secretos al frontend.
 
-El módulo de empleados invita cuentas mediante el proveedor de correo de Supabase. Las pantallas de inventario, POS, proyectos, empleados y reportes requieren revisar y aplicar las migraciones de `database/migrations/` en una base de desarrollo y asignar manualmente el primer rol administrador.
+El módulo de empleados invita cuentas mediante el proveedor de correo de Supabase. Para habilitar todas las pantallas administrativas, compará primero el resultado de `docs/03-Desarrollo/consulta-esquema-supabase-readonly.sql` con tu instancia de desarrollo. Luego ejecutá en el SQL Editor, en este orden, `20261018_001_inventory_pos.sql`, `20261018_002_projects.sql`, `20261020_003_admin_operations.sql`, `20261020_004_pos_cash_payments.sql`, `20261020_005_variant_archiving.sql` y `20261020_006_project_archiving.sql`. Asigná manualmente el primer rol `administrador` en `app_user_roles`; el registro público no puede asignarlo.
 
-Para generar la versión de producción de la interfaz: `cd frontend; npm run build`. No se debe ejecutar ninguna migración de base de datos sin revisar antes el esquema real y autorizar el destino.
+Para generar la versión de producción de la interfaz: `cd frontend; npm run build`. Las migraciones se entregan como archivos revisables; no se aplican automáticamente. Validalas primero en desarrollo y respaldá la base antes de trasladar cambios a producción.
 
 La API escucha en `http://localhost:3000`; Vite inicia la interfaz en la URL local que informa la consola. Los scripts de conveniencia disponibles desde la raíz son `npm run dev:backend`, `npm run dev:frontend`, `npm run test:backend` y `npm run build:frontend`.
 

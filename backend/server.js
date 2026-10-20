@@ -114,7 +114,7 @@ app.get('/api/salud', (req, res) => res.json({ ok: true }));
 async function listarProductos(req, res) {
   const { data, error } = await supabase
     .from('products')
-    .select('id, nombre, descripcion, precio, precio_anterior, badge, imagen_url, sports(slug), product_variants(id, talle, stock)')
+    .select('id, nombre, descripcion, precio, precio_anterior, badge, imagen_url, sports(slug), product_variants(id, talle, color, stock, activo)')
     .eq('activo', true)
     .order('id');
 
@@ -124,9 +124,9 @@ async function listarProductos(req, res) {
   }
 
   const productos = data.map(p => {
-    const variantes = [...(p.product_variants || [])].sort((a, b) => a.id - b.id);
+    const variantes = [...(p.product_variants || [])].filter((variant) => variant.activo !== false).sort((a, b) => a.id - b.id);
     const stock = {};
-    variantes.forEach(v => { stock[v.talle] = v.stock; });
+    variantes.forEach(v => { stock[v.talle] = (stock[v.talle] || 0) + v.stock; });
     return {
       id: p.id,
       name: p.nombre,
@@ -136,8 +136,9 @@ async function listarProductos(req, res) {
       badge: p.badge || undefined,
       img: p.imagen_url,
       sport: p.sports?.slug || '',
-      sizes: variantes.map(v => v.talle),
-      stock
+      sizes: [...new Set(variantes.map(v => v.talle))],
+      stock,
+      variants: variantes.map(v => ({ id: v.id, size: v.talle, color: v.color || '', stock: v.stock }))
     };
   });
 
@@ -163,7 +164,7 @@ app.get('/api/v1/me', requireAuth, async (req, res) => {
 app.patch('/api/v1/products/:id', requireAuth, requireRole('administrador'), async (req, res) => {
   const id = Number(req.params.id);
   const body = req.body || {};
-  const allowed = ['nombre', 'descripcion', 'precio', 'precio_anterior', 'badge', 'imagen_url', 'activo'];
+  const allowed = ['nombre', 'descripcion', 'precio', 'precio_anterior', 'badge', 'imagen_url', 'activo', 'sku'];
   const update = Object.fromEntries(Object.entries(body).filter(([key]) => allowed.includes(key)));
   if (!Number.isSafeInteger(id) || id < 1 || !Object.keys(update).length) return res.status(400).json({ error: 'Producto o cambios inválidos' });
   if (update.nombre !== undefined && (typeof update.nombre !== 'string' || update.nombre.trim().length < 2 || update.nombre.trim().length > 200)) return res.status(400).json({ error: 'El nombre debe tener entre 2 y 200 caracteres' });
@@ -172,17 +173,217 @@ app.patch('/api/v1/products/:id', requireAuth, requireRole('administrador'), asy
   if (update.precio_anterior !== undefined && update.precio_anterior !== null && (!Number.isFinite(Number(update.precio_anterior)) || Number(update.precio_anterior) <= 0)) return res.status(400).json({ error: 'El precio anterior debe ser positivo o nulo' });
   if (update.badge !== undefined && (typeof update.badge !== 'string' || update.badge.length > 60)) return res.status(400).json({ error: 'La etiqueta no puede superar 60 caracteres' });
   if (update.imagen_url !== undefined && (typeof update.imagen_url !== 'string' || update.imagen_url.length > 1000)) return res.status(400).json({ error: 'La ruta de imagen es inválida' });
+  if (update.sku !== undefined && (typeof update.sku !== 'string' || update.sku.length > 100)) return res.status(400).json({ error: 'El SKU no puede superar 100 caracteres' });
   if (update.activo !== undefined && typeof update.activo !== 'boolean') return res.status(400).json({ error: 'El estado activo debe ser verdadero o falso' });
   if (update.nombre !== undefined) update.nombre = update.nombre.trim();
+  if (update.sku !== undefined) update.sku = update.sku.trim() || null;
   if (update.precio !== undefined) update.precio = Number(update.precio);
   if (update.precio_anterior !== undefined && update.precio_anterior !== null) update.precio_anterior = Number(update.precio_anterior);
-  const { data, error } = await supabase.from('products').update(update).eq('id', id).select('id, nombre, descripcion, precio, precio_anterior, badge, imagen_url, activo').maybeSingle();
+  const { data, error } = await supabase.from('products').update(update).eq('id', id).select('id, nombre, descripcion, precio, precio_anterior, badge, imagen_url, activo, sku').maybeSingle();
   if (error) {
     console.error('No se pudo actualizar producto:', error.message);
-    return res.status(500).json({ error: 'No se pudo actualizar el producto' });
+    return res.status(error.code === '23505' ? 409 : 500).json({ error: error.code === '23505' ? 'Ese SKU ya está asignado a otro producto' : 'No se pudo actualizar el producto' });
   }
   if (!data) return res.status(404).json({ error: 'Producto inexistente' });
   res.json(data);
+});
+
+app.get('/api/v1/sports', requireAuth, requireRole('administrador'), async (req, res) => {
+  const { data, error } = await supabase.from('sports').select('id, slug').order('slug');
+  if (error) return res.status(500).json({ error: 'No se pudieron cargar las categorías deportivas' });
+  res.json(data || []);
+});
+
+// Alta en el catálogo compartido y creación auditada de la primera variante.
+app.post('/api/v1/products', requireAuth, requireRole('administrador'), async (req, res) => {
+  const { nombre, descripcion = '', precio, sport, imagen_url = '', sku = '', talle, color = '', stock = 0, stock_minimo = 0 } = req.body || {};
+  if (typeof nombre !== 'string' || nombre.trim().length < 2 || nombre.trim().length > 200 || typeof descripcion !== 'string' || descripcion.length > 4000
+      || !Number.isFinite(Number(precio)) || Number(precio) <= 0 || Number(precio) > 100000000 || typeof sport !== 'string' || !sport.trim()
+      || typeof imagen_url !== 'string' || imagen_url.length > 1000 || typeof sku !== 'string' || sku.length > 100
+      || typeof talle !== 'string' || !talle.trim() || talle.length > 40 || typeof color !== 'string' || color.length > 60
+      || !Number.isInteger(stock) || stock < 0 || stock > 100000 || !Number.isInteger(stock_minimo) || stock_minimo < 0 || stock_minimo > 100000) {
+    return res.status(400).json({ error: 'Completá nombre, precio, deporte, talle y cantidades válidas' });
+  }
+  const { data, error } = await supabase.rpc('create_admin_product', {
+    p_name: nombre.trim(), p_description: descripcion, p_price: Number(precio), p_sport_slug: sport.trim(), p_image_url: imagen_url.trim(),
+    p_sku: sku.trim(), p_size: talle.trim(), p_color: color.trim(), p_initial_stock: stock, p_minimum: stock_minimo, p_responsible_id: req.user.id,
+  });
+  if (error) {
+    console.error('No se pudo crear el producto:', error.message);
+    const status = error.code === '23505' ? 409 : ['22023', '23503'].includes(error.code) ? 400 : 500;
+    return res.status(status).json({ error: error.code === '23505' ? 'El SKU o la variante ya existe' : error.code === '42P01' ? 'No se encontró la relación de categoría; revisá el esquema de Supabase' : error.message?.includes('deporte') ? error.message : 'No se pudo crear el producto; verificá las migraciones 001 y 003' });
+  }
+  res.status(201).json(data?.[0] || {});
+});
+
+app.get('/api/v1/settings', requireAuth, requireRole('administrador'), async (req, res) => {
+  const { data, error } = await supabase.from('store_settings').select('settings, updated_at').eq('setting_key', 'general').maybeSingle();
+  if (error) return res.status(500).json({ error: 'No se pudieron cargar las preferencias comerciales; verificá la migración 003' });
+  res.json(data || { settings: {}, updated_at: null });
+});
+
+app.patch('/api/v1/settings', requireAuth, requireRole('administrador'), async (req, res) => {
+  const body = req.body || {};
+  const allowed = ['businessName', 'logoUrl', 'phone', 'email', 'address', 'receiptFooter', 'lowStockThreshold'];
+  if (!Object.keys(body).length || Object.keys(body).some((key) => !allowed.includes(key))) return res.status(400).json({ error: 'Las preferencias indicadas no son válidas' });
+  const limits = { businessName: 160, logoUrl: 1000, phone: 100, email: 254, address: 500, receiptFooter: 500 };
+  for (const [key, limit] of Object.entries(limits)) if (body[key] !== undefined && (typeof body[key] !== 'string' || body[key].length > limit)) return res.status(400).json({ error: `El campo ${key} supera el largo permitido` });
+  if (body.businessName !== undefined && body.businessName.trim().length < 2) return res.status(400).json({ error: 'El nombre comercial debe tener al menos dos caracteres' });
+  if (body.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)) return res.status(400).json({ error: 'El correo comercial no es válido' });
+  if (body.lowStockThreshold !== undefined && (!Number.isInteger(body.lowStockThreshold) || body.lowStockThreshold < 0 || body.lowStockThreshold > 100000)) return res.status(400).json({ error: 'El umbral de stock debe ser un entero no negativo' });
+  const { data: current, error: readError } = await supabase.from('store_settings').select('settings').eq('setting_key', 'general').maybeSingle();
+  if (readError) return res.status(500).json({ error: 'No se pudieron leer las preferencias comerciales' });
+  const { data, error } = await supabase.from('store_settings').upsert({ setting_key: 'general', settings: { ...(current?.settings || {}), ...body }, updated_by: req.user.id }, { onConflict: 'setting_key' }).select('settings, updated_at').single();
+  if (error) return res.status(500).json({ error: 'No se pudieron guardar las preferencias comerciales; verificá la migración 003' });
+  res.json(data);
+});
+
+app.get('/api/v1/suppliers', requireAuth, requireRole('administrador'), async (req, res) => {
+  const { data, error } = await supabase.from('suppliers').select('*, purchase_receipts(id, reference, created_at)').order('nombre').limit(200);
+  if (error) return res.status(500).json({ error: 'No se pudieron cargar los proveedores; verificá la migración 003' });
+  res.json(data || []);
+});
+
+app.post('/api/v1/suppliers', requireAuth, requireRole('administrador'), async (req, res) => {
+  const { nombre, contacto = '', email = '', telefono = '', direccion = '', observaciones = '' } = req.body || {};
+  if (typeof nombre !== 'string' || nombre.trim().length < 2 || nombre.trim().length > 160 || [contacto, email, telefono, direccion, observaciones].some((value) => typeof value !== 'string')
+      || contacto.length > 160 || email.length > 254 || telefono.length > 100 || direccion.length > 500 || observaciones.length > 2000
+      || (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) return res.status(400).json({ error: 'Revisá el nombre y los datos de contacto del proveedor' });
+  const { data, error } = await supabase.from('suppliers').insert({ nombre: nombre.trim(), contacto, email, telefono, direccion, observaciones, created_by: req.user.id }).select('*').single();
+  if (error) return res.status(500).json({ error: 'No se pudo registrar el proveedor; verificá la migración 003' });
+  res.status(201).json(data);
+});
+
+app.patch('/api/v1/suppliers/:id', requireAuth, requireRole('administrador'), async (req, res) => {
+  const id = Number(req.params.id); const body = req.body || {};
+  const allowed = ['nombre', 'contacto', 'email', 'telefono', 'direccion', 'observaciones', 'activo'];
+  const update = Object.fromEntries(Object.entries(body).filter(([key]) => allowed.includes(key)));
+  if (!Number.isSafeInteger(id) || id < 1 || !Object.keys(update).length || Object.keys(body).some((key) => !allowed.includes(key))) return res.status(400).json({ error: 'Proveedor o cambios inválidos' });
+  if (update.nombre !== undefined && (typeof update.nombre !== 'string' || update.nombre.trim().length < 2 || update.nombre.trim().length > 160)) return res.status(400).json({ error: 'El nombre del proveedor debe tener entre 2 y 160 caracteres' });
+  for (const key of ['contacto', 'email', 'telefono', 'direccion', 'observaciones']) if (update[key] !== undefined && typeof update[key] !== 'string') return res.status(400).json({ error: 'Los datos de contacto deben ser texto' });
+  if (update.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(update.email)) return res.status(400).json({ error: 'El correo del proveedor no es válido' });
+  if (update.activo !== undefined && typeof update.activo !== 'boolean') return res.status(400).json({ error: 'El estado del proveedor no es válido' });
+  if (update.nombre !== undefined) update.nombre = update.nombre.trim();
+  update.updated_at = new Date().toISOString();
+  const { data, error } = await supabase.from('suppliers').update(update).eq('id', id).select('*').maybeSingle();
+  if (error) return res.status(500).json({ error: 'No se pudo actualizar el proveedor' });
+  if (!data) return res.status(404).json({ error: 'Proveedor inexistente' });
+  res.json(data);
+});
+
+app.get('/api/v1/suppliers/:id/products', requireAuth, requireRole('administrador'), async (req, res) => {
+  const id = Number(req.params.id); if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ error: 'Proveedor inválido' });
+  const { data, error } = await supabase.from('supplier_products').select('*, products(id, nombre, sku)').eq('supplier_id', id).order('product_id');
+  if (error) return res.status(500).json({ error: 'No se pudo consultar el catálogo asociado al proveedor' });
+  res.json(data || []);
+});
+
+app.put('/api/v1/suppliers/:id/products/:productId', requireAuth, requireRole('administrador'), async (req, res) => {
+  const supplierId = Number(req.params.id); const productId = Number(req.params.productId);
+  const { supplierSku = '', unitCost = null } = req.body || {};
+  if (!Number.isSafeInteger(supplierId) || supplierId < 1 || !Number.isSafeInteger(productId) || productId < 1 || typeof supplierSku !== 'string' || supplierSku.length > 100 || (unitCost !== null && (!Number.isFinite(Number(unitCost)) || Number(unitCost) < 0))) return res.status(400).json({ error: 'Asociación de producto inválida' });
+  const { data, error } = await supabase.from('supplier_products').upsert({ supplier_id: supplierId, product_id: productId, supplier_sku: supplierSku.trim(), unit_cost: unitCost === null ? null : Number(unitCost), updated_at: new Date().toISOString() }, { onConflict: 'supplier_id,product_id' }).select('*').single();
+  if (error) return res.status(500).json({ error: 'No se pudo asociar el producto al proveedor' });
+  res.json(data);
+});
+
+app.delete('/api/v1/suppliers/:id/products/:productId', requireAuth, requireRole('administrador'), async (req, res) => {
+  const supplierId = Number(req.params.id); const productId = Number(req.params.productId);
+  if (!Number.isSafeInteger(supplierId) || supplierId < 1 || !Number.isSafeInteger(productId) || productId < 1) return res.status(400).json({ error: 'Asociación de producto inválida' });
+  const { data, error } = await supabase.from('supplier_products').delete().eq('supplier_id', supplierId).eq('product_id', productId).select('supplier_id, product_id').maybeSingle();
+  if (error) return res.status(500).json({ error: 'No se pudo quitar la asociación' });
+  if (!data) return res.status(404).json({ error: 'Asociación inexistente' });
+  res.json({ ok: true });
+});
+
+app.get('/api/v1/suppliers/:id/receipts', requireAuth, requireRole('administrador'), async (req, res) => {
+  const id = Number(req.params.id); if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ error: 'Proveedor inválido' });
+  const { data, error } = await supabase.from('purchase_receipts').select('id, reference, notes, created_at, purchase_receipt_items(quantity, unit_cost, product_variants(talle, color, products(nombre)))').eq('supplier_id', id).order('created_at', { ascending: false }).limit(100);
+  if (error) return res.status(500).json({ error: 'No se pudo consultar el historial de reposiciones' });
+  res.json(data || []);
+});
+
+app.post('/api/v1/suppliers/:id/receipts', requireAuth, requireRole('administrador'), async (req, res) => {
+  const supplierId = Number(req.params.id); const { reference = '', notes = '', items } = req.body || {};
+  if (!Number.isSafeInteger(supplierId) || supplierId < 1 || typeof reference !== 'string' || typeof notes !== 'string' || !Array.isArray(items) || items.length < 1 || items.length > 100 || items.some((item) => !Number.isSafeInteger(item.variantId) || item.variantId < 1 || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 100000 || !Number.isFinite(Number(item.unitCost)) || Number(item.unitCost) < 0)) return res.status(400).json({ error: 'La reposición debe tener proveedor y al menos una línea válida' });
+  const { data, error } = await supabase.rpc('register_purchase_receipt', { p_supplier_id: supplierId, p_reference: reference.trim(), p_notes: notes.trim(), p_user_id: req.user.id, p_items: items.map((item) => ({ variant_id: item.variantId, quantity: item.quantity, unit_cost: Number(item.unitCost) })) });
+  if (error) {
+    console.error('No se pudo registrar la reposición:', error.message);
+    return res.status(error.code === 'P0002' ? 404 : error.code === '22023' ? 400 : 409).json({ error: error.message?.includes('Proveedor') || error.message?.includes('Variante') ? error.message : 'No se pudo registrar la reposición; verificá la migración 003' });
+  }
+  res.status(201).json(data?.[0] || {});
+});
+
+app.get('/api/v1/cash', requireAuth, requireRole('administrador', 'empleado'), async (req, res) => {
+  const [{ data: session, error: sessionError }, { data: history, error: historyError }] = await Promise.all([
+    supabase.from('cash_sessions').select('*').eq('status', 'abierta').maybeSingle(),
+    supabase.from('cash_sessions').select('*').order('opened_at', { ascending: false }).limit(30),
+  ]);
+  if (sessionError || historyError) return res.status(500).json({ error: 'No se pudo consultar la caja; verificá la migración 003' });
+  if (!session) return res.json({ session: null, cashSales: [], movements: [], history: history || [] });
+  const [{ data: cashSales, error: salesError }, { data: movements, error: movementsError }] = await Promise.all([
+    supabase.from('sales').select('id, total, status, created_at, sale_payments(method, amount)').eq('cash_session_id', session.id).order('created_at', { ascending: false }),
+    supabase.from('cash_movements').select('*').eq('session_id', session.id).order('created_at', { ascending: false }),
+  ]);
+  if (salesError || movementsError) return res.status(500).json({ error: 'No se pudo consultar el detalle del turno de caja' });
+  const cashIn = (cashSales || []).filter((sale) => sale.status === 'completada').flatMap((sale) => sale.sale_payments || []).filter((payment) => payment.method === 'efectivo').reduce((sum, payment) => sum + Number(payment.amount), 0);
+  const movementsTotal = (movements || []).reduce((sum, movement) => sum + (movement.kind === 'entrada' ? Number(movement.amount) : -Number(movement.amount)), 0);
+  res.json({ session, cashSales: cashSales || [], movements: movements || [], history: history || [], expectedCash: Number(session.opening_float) + cashIn + movementsTotal });
+});
+
+app.post('/api/v1/cash/open', requireAuth, requireRole('administrador', 'empleado'), async (req, res) => {
+  const openingFloat = req.body?.openingFloat;
+  if (!Number.isFinite(openingFloat) || openingFloat < 0 || openingFloat > 1000000000) return res.status(400).json({ error: 'Indicá el saldo inicial de caja' });
+  const { data, error } = await supabase.rpc('open_cash_session', { p_user_id: req.user.id, p_opening_float: openingFloat });
+  if (error) return res.status(error.code === '23505' ? 409 : 400).json({ error: error.code === '23505' ? 'Ya hay un turno de caja abierto' : 'No se pudo abrir la caja; verificá la migración 003' });
+  res.status(201).json(data);
+});
+
+app.post('/api/v1/cash/:id/movements', requireAuth, requireRole('administrador', 'empleado'), async (req, res) => {
+  const sessionId = Number(req.params.id); const { kind, amount, reason } = req.body || {};
+  if (!Number.isSafeInteger(sessionId) || sessionId < 1 || !['entrada', 'retiro'].includes(kind) || !Number.isFinite(amount) || amount <= 0 || typeof reason !== 'string' || reason.trim().length < 3 || reason.trim().length > 500) return res.status(400).json({ error: 'Completá tipo, importe y motivo del movimiento' });
+  const { data, error } = await supabase.rpc('register_cash_movement', { p_session_id: sessionId, p_kind: kind, p_amount: amount, p_reason: reason.trim(), p_user_id: req.user.id });
+  if (error) return res.status(error.code === '23514' ? 409 : 400).json({ error: error.message?.includes('caja no está') ? error.message : 'No se pudo registrar el movimiento de caja' });
+  res.status(201).json(data);
+});
+
+app.post('/api/v1/cash/:id/close', requireAuth, requireRole('administrador', 'empleado'), async (req, res) => {
+  const sessionId = Number(req.params.id); const countedCash = req.body?.countedCash;
+  if (!Number.isSafeInteger(sessionId) || sessionId < 1 || !Number.isFinite(countedCash) || countedCash < 0) return res.status(400).json({ error: 'Indicá el efectivo contado al cierre' });
+  const { data, error } = await supabase.rpc('close_cash_session', { p_session_id: sessionId, p_user_id: req.user.id, p_counted_cash: countedCash });
+  if (error) return res.status(error.code === '23514' ? 409 : 400).json({ error: error.code === '23514' ? 'Este turno de caja ya está cerrado' : 'No se pudo cerrar la caja' });
+  res.json(data);
+});
+
+app.get('/api/v1/cash/report', requireAuth, requireRole('administrador', 'empleado'), async (req, res) => {
+  const from = req.query.from ? String(req.query.from) : '';
+  const to = req.query.to ? String(req.query.to) : '';
+  if (!fechaValida(from) || !fechaValida(to) || (from && to && from > to)) return res.status(400).json({ error: 'El período indicado no es válido' });
+  const range = (query) => {
+    if (from) query = query.gte('created_at', new Date(`${from}T00:00:00.000Z`).toISOString());
+    if (to) query = query.lte('created_at', new Date(`${to}T23:59:59.999Z`).toISOString());
+    return query;
+  };
+  const [salesResult, movementResult, sessionsResult] = await Promise.all([
+    cargarFilasPaginadas((start, end) => range(supabase.from('sales').select('id, employee_id, payment_method, status, total, discount, created_at, sale_items(product_name, size, quantity, unit_price, line_total), sale_payments(method, amount)').order('created_at', { ascending: false }).range(start, end))),
+    cargarFilasPaginadas((start, end) => range(supabase.from('cash_movements').select('id, session_id, kind, amount, reason, sale_id, created_at').order('created_at', { ascending: false }).range(start, end))),
+    cargarFilasPaginadas((start, end) => supabase.from('cash_sessions').select('id, status, opening_float, expected_cash, counted_cash, difference, opened_at, closed_at').order('opened_at', { ascending: false }).range(start, end)),
+  ]);
+  const failed = [salesResult, movementResult, sessionsResult].find((result) => result.error);
+  if (failed) return res.status(500).json({ error: 'No se pudo generar el reporte de caja; verificá la migración 003' });
+  const sales = salesResult.data || []; const movements = movementResult.data || []; const sessions = sessionsResult.data || [];
+  const completed = sales.filter((sale) => sale.status === 'completada');
+  const salePayments = completed.flatMap((sale) => sale.sale_payments || []);
+  const cash = salePayments.filter((payment) => payment.method === 'efectivo').reduce((sum, payment) => sum + Number(payment.amount), 0);
+  const other = salePayments.filter((payment) => payment.method !== 'efectivo').reduce((sum, payment) => sum + Number(payment.amount), 0);
+  const totals = {
+    sales: completed.reduce((sum, sale) => sum + Number(sale.total), 0), cash, other,
+    refunds: movements.filter((movement) => movement.kind === 'devolucion').reduce((sum, movement) => sum + Number(movement.amount), 0),
+    outflows: movements.filter((movement) => movement.kind === 'retiro').reduce((sum, movement) => sum + Number(movement.amount), 0),
+    inflows: movements.filter((movement) => movement.kind === 'entrada').reduce((sum, movement) => sum + Number(movement.amount), 0),
+    differences: sessions.filter((session) => session.status === 'cerrada' && (!from || String(session.closed_at).slice(0, 10) >= from) && (!to || String(session.closed_at).slice(0, 10) <= to)).reduce((sum, session) => sum + Number(session.difference || 0), 0),
+  };
+  res.json({ period: { from, to }, totals, sales, movements, sessions });
 });
 
 // Lista cuentas con roles sin incluir contraseñas ni tokens; el servicio de Auth solo se consulta en backend.
@@ -259,13 +460,14 @@ app.get('/api/v1/customers', requireAuth, requireRole('administrador'), async (r
   }).filter(customer => !search || `${customer.nombre} ${customer.apellido} ${customer.email}`.toLocaleLowerCase('es').includes(search));
   const customerIds = customers.map(customer => customer.id);
   const { data: orders, error: orderError } = customerIds.length
-    ? await cargarFilasPaginadas((startRow, endRow) => supabase.from('orders').select('customer_id, total, estado').in('customer_id', customerIds).range(startRow, endRow))
+    ? await cargarFilasPaginadas((startRow, endRow) => supabase.from('orders').select('customer_id, total, estado, created_at').in('customer_id', customerIds).order('created_at', { ascending: false }).range(startRow, endRow))
     : { data: [], error: null };
   if (orderError) return res.status(500).json({ error: 'No se pudo consultar el historial de compras' });
   const totals = new Map();
   for (const order of orders || []) {
-    const current = totals.get(order.customer_id) || { orderCount: 0, completedSpend: 0 };
+    const current = totals.get(order.customer_id) || { orderCount: 0, completedSpend: 0, lastPurchase: order.created_at };
     current.orderCount += 1;
+    if (!current.lastPurchase || order.created_at > current.lastPurchase) current.lastPurchase = order.created_at;
     if (['pagado', 'enviado', 'entregado'].includes(order.estado)) current.completedSpend += Number(order.total);
     totals.set(order.customer_id, current);
   }
@@ -304,6 +506,72 @@ app.patch('/api/v1/customers/:id', requireAuth, requireRole('administrador'), as
   res.json(data);
 });
 
+// Consulta administrativa paginada; no reutiliza el endpoint personal de pedidos del cliente.
+app.get('/api/v1/admin/orders/summary', requireAuth, requireRole('administrador'), async (req, res) => {
+  const { data, error } = await cargarFilasPaginadas((from, to) => supabase.from('orders').select('id, canal, estado, total, created_at').order('created_at', { ascending: false }).range(from, to));
+  if (error) return res.status(500).json({ error: 'No se pudieron calcular los indicadores de pedidos' });
+  const orders = data || []; const date = new Date().toISOString().slice(0, 10);
+  const completed = orders.filter((order) => order.canal === 'online' && ['pagado', 'enviado', 'entregado'].includes(order.estado));
+  res.json({ total: orders.length, pending: orders.filter((order) => order.estado === 'pendiente').length, today: orders.filter((order) => String(order.created_at).slice(0, 10) === date).length, revenue: completed.reduce((sum, order) => sum + Number(order.total || 0), 0) });
+});
+
+app.get('/api/v1/admin/orders', requireAuth, requireRole('administrador'), async (req, res) => {
+  const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 50));
+  const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+  const estado = String(req.query.estado || '').trim();
+  const canal = String(req.query.canal || '').trim();
+  const from = String(req.query.from || '').trim(); const to = String(req.query.to || '').trim();
+  if (!fechaValida(from) || !fechaValida(to) || (from && to && from > to)) return res.status(400).json({ error: 'El período indicado no es válido' });
+  if (estado && !['pendiente', 'pagado', 'enviado', 'entregado', 'cancelado', 'devuelto'].includes(estado)) {
+    return res.status(400).json({ error: 'El estado indicado no es válido' });
+  }
+  if (canal && !['online', 'presencial'].includes(canal)) {
+    return res.status(400).json({ error: 'El canal indicado no es válido' });
+  }
+  let request = supabase.from('orders')
+    .select('id, customer_id, direccion_envio, canal, estado, total, subtotal, envio, created_at, medio_de_pago, order_items(cantidad, precio_unitario, product_variants(talle, color, products(nombre)))', { count: 'exact' })
+    .order('created_at', { ascending: false })
+    .range((page - 1) * limit, page * limit - 1);
+  if (estado) request = request.eq('estado', estado);
+  if (canal) request = request.eq('canal', canal);
+  if (/^\d+$/.test(String(req.query.q || ''))) request = request.eq('id', Number(req.query.q));
+  if (from) request = request.gte('created_at', new Date(`${from}T00:00:00.000Z`).toISOString());
+  if (to) request = request.lte('created_at', new Date(`${to}T23:59:59.999Z`).toISOString());
+  const { data, error, count } = await request;
+  if (error) {
+    console.error('No se pudieron consultar pedidos administrativos:', error.message);
+    return res.status(500).json({ error: 'No se pudieron cargar los pedidos' });
+  }
+  res.json({ items: data || [], page, pageSize: limit, total: count || 0 });
+});
+
+// Exporta el período filtrado completo para imprimirlo como PDF desde el navegador.
+app.get('/api/v1/admin/orders/export', requireAuth, requireRole('administrador'), async (req, res) => {
+  const from = String(req.query.from || ''); const to = String(req.query.to || ''); const estado = String(req.query.estado || '');
+  if (!fechaValida(from) || !fechaValida(to) || (from && to && from > to) || (estado && !['pendiente', 'pagado', 'enviado', 'entregado', 'cancelado', 'devuelto'].includes(estado))) return res.status(400).json({ error: 'El período o estado indicado no es válido' });
+  const { data, error } = await cargarFilasPaginadas((start, end) => {
+    let query = supabase.from('orders').select('id, customer_id, direccion_envio, canal, estado, total, subtotal, envio, created_at, medio_de_pago, order_items(cantidad, precio_unitario, product_variants(talle, color, products(nombre)))').eq('canal', 'online').order('created_at', { ascending: false }).range(start, end);
+    if (from) query = query.gte('created_at', new Date(`${from}T00:00:00.000Z`).toISOString());
+    if (to) query = query.lte('created_at', new Date(`${to}T23:59:59.999Z`).toISOString());
+    if (estado) query = query.eq('estado', estado);
+    if (/^\d+$/.test(String(req.query.q || ''))) query = query.eq('id', Number(req.query.q));
+    return query;
+  });
+  if (error) return res.status(500).json({ error: 'No se pudo preparar el reporte online' });
+  res.json({ period: { from, to }, orders: data || [] });
+});
+
+// El personal administrativo puede avanzar el despacho, pero la acreditación del pago siempre la verifica Mercado Pago.
+app.patch('/api/v1/admin/orders/:id/status', requireAuth, requireRole('administrador'), async (req, res) => {
+  const id = Number(req.params.id); const { status: nextStatus } = req.body || {};
+  if (!Number.isSafeInteger(id) || id < 1 || !['enviado', 'entregado'].includes(nextStatus)) return res.status(400).json({ error: 'Pedido o estado inválido' });
+  const allowedCurrent = nextStatus === 'enviado' ? ['pagado'] : ['enviado'];
+  const { data, error } = await supabase.from('orders').update({ estado: nextStatus }).eq('id', id).eq('canal', 'online').in('estado', allowedCurrent).select('id, canal, estado, total, created_at').maybeSingle();
+  if (error) return res.status(500).json({ error: 'No se pudo actualizar el pedido' });
+  if (!data) return res.status(409).json({ error: 'El estado cambió o el pedido no permite esa transición' });
+  res.json(data);
+});
+
 // El administrador puede consultar el historial de un cliente concreto, validando primero su identidad Auth.
 app.get('/api/v1/customers/:id/orders', requireAuth, requireRole('administrador'), async (req, res) => {
   const id = String(req.params.id || '');
@@ -323,26 +591,56 @@ app.get('/api/v1/inventory', requireAuth, requireRole('administrador', 'empleado
   const query = String(req.query.q || '').trim().slice(0, 100);
   const sport = String(req.query.sport || '').trim().toLocaleLowerCase('es').slice(0, 40);
   let request = supabase.from('product_variants')
-    .select('id, talle, stock, stock_minimo, products!inner(id, nombre, descripcion, precio, activo, imagen_url, sports(slug))', { count: 'exact' })
-    .eq('products.activo', true).order('id').range((page - 1) * pageSize, page * pageSize - 1);
-  if (query) request = request.ilike('products.nombre', `%${query.replace(/[%_]/g, '')}%`);
+    .select('id, talle, color, stock, stock_minimo, activo, products!inner(id, nombre, sku, descripcion, precio, activo, imagen_url, sports(slug))', { count: 'exact' })
+    .order('id').range((page - 1) * pageSize, page * pageSize - 1);
+  if (req.role !== 'administrador' || req.query.includeInactive !== 'true') request = request.eq('products.activo', true);
+  if (req.role !== 'administrador' || req.query.includeInactive !== 'true') request = request.eq('activo', true);
+  if (query) {
+    const safeQuery = query.replace(/[%_,.()]/g, '').slice(0, 100);
+    request = request.or(`nombre.ilike.%${safeQuery}%,sku.ilike.%${safeQuery}%`, { foreignTable: 'products' });
+  }
   if (sport) request = request.eq('products.sports.slug', sport);
   const { data, error, count } = await request;
   if (error) {
     console.error('No se pudo consultar inventario:', error.message);
     return res.status(500).json({ error: 'No se pudo cargar el inventario' });
   }
-  res.json({ items: data || [], page, pageSize, total: count || 0 });
+  let items = data || [];
+  if (req.role === 'administrador') {
+    const { data: setting } = await supabase.from('store_settings').select('settings').eq('setting_key', 'general').maybeSingle();
+    const threshold = Math.max(0, Number(setting?.settings?.lowStockThreshold) || 0);
+    items = items.map((row) => ({ ...row, stock_minimo: Number(row.stock_minimo) || threshold }));
+  }
+  res.json({ items, page, pageSize, total: count || 0 });
+});
+
+// Edita datos descriptivos o archiva variantes conservando las referencias históricas.
+app.patch('/api/v1/inventory/variants/:id', requireAuth, requireRole('administrador'), async (req, res) => {
+  const id = Number(req.params.id);
+  const body = req.body || {};
+  const allowed = ['talle', 'color', 'stock_minimo', 'activo'];
+  const update = Object.fromEntries(Object.entries(body).filter(([key]) => allowed.includes(key)));
+  if (!Number.isSafeInteger(id) || id < 1 || !Object.keys(update).length) return res.status(400).json({ error: 'Variante o cambios inválidos' });
+  if (update.talle !== undefined && (typeof update.talle !== 'string' || !update.talle.trim() || update.talle.trim().length > 40)) return res.status(400).json({ error: 'El talle debe tener entre 1 y 40 caracteres' });
+  if (update.color !== undefined && (typeof update.color !== 'string' || update.color.length > 60)) return res.status(400).json({ error: 'El color no puede superar 60 caracteres' });
+  if (update.stock_minimo !== undefined && (!Number.isInteger(update.stock_minimo) || update.stock_minimo < 0 || update.stock_minimo > 100000)) return res.status(400).json({ error: 'El stock mínimo debe ser un entero válido' });
+  if (update.activo !== undefined && typeof update.activo !== 'boolean') return res.status(400).json({ error: 'El estado de la variante no es válido' });
+  if (update.talle !== undefined) update.talle = update.talle.trim();
+  if (update.color !== undefined) update.color = update.color.trim();
+  const { data, error } = await supabase.from('product_variants').update(update).eq('id', id).select('id, talle, color, stock, stock_minimo, activo').maybeSingle();
+  if (error) return res.status(error.code === '23505' ? 409 : 500).json({ error: error.code === '23505' ? 'Ya existe una variante con ese talle y color' : 'No se pudo actualizar la variante' });
+  if (!data) return res.status(404).json({ error: 'Variante inexistente' });
+  res.json(data);
 });
 
 // Da de alta un talle con cantidad inicial auditada dentro de una sola operación SQL.
 app.post('/api/v1/inventory/variants', requireAuth, requireRole('administrador'), async (req, res) => {
-  const { productId, size, initialStock, minimum = 0 } = req.body || {};
-  if (!Number.isInteger(productId) || productId < 1 || typeof size !== 'string' || !size.trim() || size.trim().length > 40 || !Number.isInteger(initialStock) || initialStock < 0 || initialStock > 100000 || !Number.isInteger(minimum) || minimum < 0 || minimum > 100000) {
+  const { productId, size, color = '', initialStock, minimum = 0 } = req.body || {};
+  if (!Number.isInteger(productId) || productId < 1 || typeof size !== 'string' || !size.trim() || size.trim().length > 40 || typeof color !== 'string' || color.length > 60 || !Number.isInteger(initialStock) || initialStock < 0 || initialStock > 100000 || !Number.isInteger(minimum) || minimum < 0 || minimum > 100000) {
     return res.status(400).json({ error: 'Producto, talle, stock inicial o mínimo inválidos' });
   }
-  const { data, error } = await supabase.rpc('create_product_variant', {
-    p_product_id: productId, p_size: size.trim(), p_initial_stock: initialStock,
+  const { data, error } = await supabase.rpc('create_product_variant_color', {
+    p_product_id: productId, p_size: size.trim(), p_color: color.trim(), p_initial_stock: initialStock,
     p_minimum: minimum, p_responsible_id: req.user.id,
   });
   if (error) {
@@ -360,9 +658,13 @@ app.get('/api/v1/inventory/movements', requireAuth, requireRole('administrador',
   const to = req.query.to ? String(req.query.to) : '';
   if (!fechaValida(from) || !fechaValida(to) || (from && to && from > to)) return res.status(400).json({ error: 'El rango de fechas no es válido' });
   let request = supabase.from('inventory_movements')
-    .select('id, variant_id, cantidad, motivo, responsable_id, stock_anterior, stock_actual, created_at, sale_id, product_variants(talle, products(nombre))')
+    .select('id, variant_id, cantidad, motivo, responsable_id, stock_anterior, stock_actual, created_at, sale_id, supplier_id, receipt_id, product_variants(talle, color, products(nombre))')
     .order('created_at', { ascending: false }).limit(limit);
   if (req.query.variantId && Number.isInteger(Number(req.query.variantId))) request = request.eq('variant_id', Number(req.query.variantId));
+  if (req.query.userId && /^[0-9a-f-]{36}$/i.test(String(req.query.userId))) request = request.eq('responsable_id', String(req.query.userId));
+  if (req.query.type === 'entrada') request = request.gt('cantidad', 0);
+  if (req.query.type === 'salida') request = request.lt('cantidad', 0);
+  if (req.query.q) request = request.ilike('motivo', `%${String(req.query.q).trim().replace(/[%_]/g, '').slice(0, 80)}%`);
   if (from) request = request.gte('created_at', new Date(`${from}T00:00:00.000Z`).toISOString());
   if (to) request = request.lte('created_at', new Date(`${to}T23:59:59.999Z`).toISOString());
   const { data, error } = await request;
@@ -410,7 +712,7 @@ app.post('/api/v1/inventory/movements', requireAuth, requireRole('administrador'
 // Lista ventas presenciales y detalles históricos solo para empleados autorizados.
 app.get('/api/v1/sales', requireAuth, requireRole('administrador', 'empleado'), async (req, res) => {
   const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 50));
-  let request = supabase.from('sales').select('id, employee_id, payment_method, status, total, created_at, sale_items(id, variant_id, product_name, size, quantity, unit_price, line_total)')
+  let request = supabase.from('sales').select('id, employee_id, payment_method, status, total, discount, cash_session_id, created_at, sale_items(id, variant_id, product_name, size, quantity, unit_price, line_total), sale_payments(method, amount)')
     .order('created_at', { ascending: false }).limit(limit);
   if (req.query.from && !Number.isNaN(Date.parse(req.query.from))) request = request.gte('created_at', new Date(req.query.from).toISOString());
   if (req.query.to && !Number.isNaN(Date.parse(req.query.to))) request = request.lte('created_at', new Date(req.query.to).toISOString());
@@ -422,15 +724,33 @@ app.get('/api/v1/sales', requireAuth, requireRole('administrador', 'empleado'), 
   res.json(data || []);
 });
 
+// Devuelve el comprobante desde la venta persistida, con datos comerciales seguros para imprimir.
+app.get('/api/v1/sales/:id/ticket', requireAuth, requireRole('administrador', 'empleado'), async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ error: 'Número de venta inválido' });
+  const [{ data: sale, error: saleError }, { data: settings, error: settingsError }] = await Promise.all([
+    supabase.from('sales').select('id, employee_id, payment_method, status, total, discount, created_at, sale_items(product_name, size, quantity, unit_price, line_total), sale_payments(method, amount)').eq('id', id).maybeSingle(),
+    supabase.from('store_settings').select('settings').eq('setting_key', 'general').maybeSingle(),
+  ]);
+  if (saleError || settingsError) return res.status(500).json({ error: 'No se pudo leer el comprobante guardado' });
+  if (!sale) return res.status(404).json({ error: 'Venta inexistente' });
+  res.json({ sale, settings: settings?.settings || {} });
+});
+
 // La base de datos vuelve a leer precios, bloquea variantes, actualiza stock y guarda la venta en una sola transacción.
 app.post('/api/v1/sales', requireAuth, requireRole('administrador', 'empleado'), async (req, res) => {
-  const { requestKey, paymentMethod, items } = req.body || {};
-  if (!validarVentaPOS(req.body)) {
+  const { requestKey, paymentMethod, items, payments, discount = 0 } = req.body || {};
+  if (!validarVentaPOS({ requestKey, paymentMethod: paymentMethod || 'otro', items }) || !Array.isArray(payments) || !payments.length || payments.length > 4 || payments.some((payment) => !['efectivo', 'tarjeta', 'transferencia', 'otro'].includes(payment.method) || !Number.isFinite(payment.amount) || payment.amount <= 0) || !Number.isFinite(discount) || discount < 0 || (discount > 0 && req.role !== 'administrador')) {
     return res.status(400).json({ error: 'Los datos de la venta son inválidos' });
   }
-  const { data, error } = await supabase.rpc('register_pos_sale', {
-    p_request_key: requestKey, p_employee_id: req.user.id, p_payment_method: paymentMethod,
+  const sessionResult = await supabase.from('cash_sessions').select('id').eq('status', 'abierta').maybeSingle();
+  if (sessionResult.error) return res.status(500).json({ error: 'No se pudo validar el turno de caja' });
+  if (!sessionResult.data) return res.status(409).json({ error: 'Abrí un turno de caja antes de registrar una venta' });
+  const { data, error } = await supabase.rpc('register_pos_sale_v2', {
+    p_request_key: requestKey, p_employee_id: req.user.id,
     p_items: items.map(item => ({ variant_id: item.variantId, quantity: item.qty })),
+    p_payment_lines: payments.map(payment => ({ method: payment.method, amount: Math.round(payment.amount * 100) / 100 })),
+    p_discount: Math.round(discount * 100) / 100, p_cash_session_id: sessionResult.data.id,
   });
   if (error) {
     console.error('No se pudo registrar venta POS:', error.message);
@@ -448,7 +768,7 @@ app.post('/api/v1/sales/:id/reverse', requireAuth, requireRole('administrador'),
   if (!Number.isSafeInteger(saleId) || saleId < 1 || !validarReversionVenta(req.body)) {
     return res.status(400).json({ error: 'Indicá una venta, el tipo de reversión y un motivo válido' });
   }
-  const { data, error } = await supabase.rpc('reverse_pos_sale', {
+  const { data, error } = await supabase.rpc('reverse_pos_sale_v2', {
     p_sale_id: saleId, p_responsible_id: req.user.id, p_new_status: status, p_reason: reason.trim(),
   });
   if (error) {
@@ -471,7 +791,8 @@ async function registrarHistorialProyecto(projectId, taskId, actorId, action, de
 
 // Devuelve proyectos a administradores y a empleados que son responsables o tienen una tarea asignada.
 app.get('/api/v1/projects', requireAuth, requireRole('administrador', 'empleado'), async (req, res) => {
-  let query = supabase.from('projects').select('*, project_tasks(id, status, due_date), project_phases(id, name, start_date, due_date)').order('updated_at', { ascending: false }).limit(100);
+  let query = supabase.from('projects').select('*, project_tasks(id, status, due_date), project_phases(id, name, description, start_date, due_date, position)').order('updated_at', { ascending: false }).limit(100);
+  if (req.role !== 'administrador' || req.query.includeArchived !== 'true') query = query.is('archived_at', null);
   if (req.role === 'empleado') {
     const { data: assignments, error: taskError } = await supabase.from('project_tasks').select('project_id').eq('assignee_id', req.user.id);
     if (taskError) return res.status(500).json({ error: 'No se pudieron consultar las asignaciones' });
@@ -537,6 +858,10 @@ app.patch('/api/v1/projects/:id', requireAuth, requireRole('administrador'), asy
   const id = Number(req.params.id);
   const allowed = { name: 'name', description: 'description', objective: 'objective', ownerId: 'owner_id', startDate: 'start_date', dueDate: 'due_date', priority: 'priority', status: 'status' };
   const update = Object.fromEntries(Object.entries(allowed).filter(([field]) => Object.hasOwn(req.body || {}, field)).map(([field, column]) => [column, req.body[field]]));
+  if (Object.hasOwn(req.body || {}, 'archived')) {
+    if (typeof req.body.archived !== 'boolean') return res.status(400).json({ error: 'El estado de archivo del proyecto no es válido' });
+    update.archived_at = req.body.archived ? new Date().toISOString() : null;
+  }
   if (!Number.isSafeInteger(id) || id < 1 || !Object.keys(update).length) return res.status(400).json({ error: 'Indicá un proyecto y campos válidos para actualizar' });
   if (update.name !== undefined && (typeof update.name !== 'string' || update.name.trim().length < 2 || update.name.trim().length > 160)) return res.status(400).json({ error: 'Nombre de proyecto inválido' });
   if (update.description !== undefined && (typeof update.description !== 'string' || update.description.length > 4000)) return res.status(400).json({ error: 'Descripción inválida' });
@@ -574,6 +899,29 @@ app.post('/api/v1/projects/:id/phases', requireAuth, requireRole('administrador'
   res.status(201).json(data);
 });
 
+app.patch('/api/v1/projects/:id/phases/:phaseId', requireAuth, requireRole('administrador'), async (req, res) => {
+  const projectId = Number(req.params.id); const phaseId = Number(req.params.phaseId);
+  const { name, description = '', startDate = null, dueDate = null, position = 0 } = req.body || {};
+  if (!Number.isSafeInteger(projectId) || projectId < 1 || !Number.isSafeInteger(phaseId) || phaseId < 1 || typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 160 || typeof description !== 'string' || description.length > 4000 || !Number.isInteger(position) || !fechaValida(startDate) || !fechaValida(dueDate) || (startDate && dueDate && dueDate < startDate)) return res.status(400).json({ error: 'Datos de fase inválidos' });
+  const { data, error } = await supabase.from('project_phases').update({ name: name.trim(), description, start_date: startDate, due_date: dueDate, position }).eq('id', phaseId).eq('project_id', projectId).select('*').maybeSingle();
+  if (error) return res.status(500).json({ error: 'No se pudo actualizar la fase' });
+  if (!data) return res.status(404).json({ error: 'Fase inexistente' });
+  try { await registrarHistorialProyecto(projectId, null, req.user.id, 'fase_actualizada', { phaseId, name: data.name }); }
+  catch (historyError) { return res.status(500).json({ error: historyError.message }); }
+  res.json(data);
+});
+
+app.delete('/api/v1/projects/:id/phases/:phaseId', requireAuth, requireRole('administrador'), async (req, res) => {
+  const projectId = Number(req.params.id); const phaseId = Number(req.params.phaseId);
+  if (!Number.isSafeInteger(projectId) || projectId < 1 || !Number.isSafeInteger(phaseId) || phaseId < 1) return res.status(400).json({ error: 'Proyecto o fase inválidos' });
+  const { data, error } = await supabase.from('project_phases').delete().eq('id', phaseId).eq('project_id', projectId).select('id, name').maybeSingle();
+  if (error) return res.status(500).json({ error: 'No se pudo eliminar la fase' });
+  if (!data) return res.status(404).json({ error: 'Fase inexistente' });
+  try { await registrarHistorialProyecto(projectId, null, req.user.id, 'fase_eliminada', { phaseId, name: data.name }); }
+  catch (historyError) { return res.status(500).json({ error: historyError.message }); }
+  res.json({ ok: true });
+});
+
 // Crea tareas y verifica que el responsable asignado tenga el rol de empleado activo.
 app.post('/api/v1/projects/:id/tasks', requireAuth, requireRole('administrador'), async (req, res) => {
   const projectId = Number(req.params.id);
@@ -599,7 +947,8 @@ app.post('/api/v1/projects/:id/tasks', requireAuth, requireRole('administrador')
 
 // Los empleados solo ven tareas propias; los administradores pueden aplicar filtros generales.
 app.get('/api/v1/tasks', requireAuth, requireRole('administrador', 'empleado'), async (req, res) => {
-  let query = supabase.from('project_tasks').select('*, projects(name, status), project_phases(name)').order('due_date', { ascending: true }).limit(200);
+  let query = supabase.from('project_tasks').select('*, projects!inner(name, status, archived_at), project_phases(name)').order('due_date', { ascending: true }).limit(200);
+  if (req.query.includeArchived !== 'true') query = query.is('projects.archived_at', null);
   if (req.role === 'empleado') query = query.eq('assignee_id', req.user.id);
   if (req.query.status && ['pendiente', 'en_curso', 'bloqueada', 'completada'].includes(req.query.status)) query = query.eq('status', req.query.status);
   if (req.query.priority && ['baja', 'media', 'alta', 'urgente'].includes(req.query.priority)) query = query.eq('priority', req.query.priority);
@@ -636,6 +985,19 @@ app.patch('/api/v1/tasks/:id', requireAuth, requireRole('administrador', 'emplea
   res.json(data);
 });
 
+app.delete('/api/v1/tasks/:id', requireAuth, requireRole('administrador'), async (req, res) => {
+  const taskId = Number(req.params.id);
+  if (!Number.isSafeInteger(taskId) || taskId < 1) return res.status(400).json({ error: 'Tarea inválida' });
+  const { data: task, error: lookupError } = await supabase.from('project_tasks').select('id, project_id, title').eq('id', taskId).maybeSingle();
+  if (lookupError) return res.status(500).json({ error: 'No se pudo consultar la tarea' });
+  if (!task) return res.status(404).json({ error: 'Tarea inexistente' });
+  const { error } = await supabase.from('project_tasks').delete().eq('id', taskId);
+  if (error) return res.status(500).json({ error: 'No se pudo eliminar la tarea' });
+  try { await registrarHistorialProyecto(task.project_id, null, req.user.id, 'tarea_eliminada', { taskId, title: task.title }); }
+  catch (historyError) { return res.status(500).json({ error: historyError.message }); }
+  res.json({ ok: true });
+});
+
 // Calcula indicadores administrativos desde pedidos, ventas, variantes y tareas guardadas.
 async function cargarFilasPaginadas(crearConsulta, pageSize = 1000) {
   const rows = [];
@@ -667,14 +1029,16 @@ app.get('/api/v1/reports/summary', requireAuth, requireRole('administrador'), as
     if (end) query = query.lte('created_at', end);
     return query;
   };
-  const [ordersResult, salesResult, variantsResult, projectsResult, tasksResult] = await Promise.all([
+  const [ordersResult, salesResult, variantsResult, projectsResult, tasksResult, productsResult, settingsResult] = await Promise.all([
     cargarFilasPaginadas((startRow, endRow) => dateRange(supabase.from('orders').select('id, canal, estado, total, created_at').order('created_at', { ascending: false }).range(startRow, endRow))),
-    cargarFilasPaginadas((startRow, endRow) => dateRange(supabase.from('sales').select('id, status, total, created_at').order('created_at', { ascending: false }).range(startRow, endRow))),
+    cargarFilasPaginadas((startRow, endRow) => dateRange(supabase.from('sales').select('id, status, total, created_at, sale_payments(method, amount)').order('created_at', { ascending: false }).range(startRow, endRow))),
     cargarFilasPaginadas((startRow, endRow) => supabase.from('product_variants').select('id, talle, stock, stock_minimo, products!inner(id, nombre, activo)').eq('products.activo', true).range(startRow, endRow)),
     cargarFilasPaginadas((startRow, endRow) => supabase.from('projects').select('id, status').range(startRow, endRow)),
     cargarFilasPaginadas((startRow, endRow) => supabase.from('project_tasks').select('id, status, due_date').range(startRow, endRow)),
+    supabase.from('products').select('id', { count: 'exact', head: true }).eq('activo', true),
+    supabase.from('store_settings').select('settings').eq('setting_key', 'general').maybeSingle(),
   ]);
-  const failed = [ordersResult, salesResult, variantsResult, projectsResult, tasksResult].find((result) => result.error);
+  const failed = [ordersResult, salesResult, variantsResult, projectsResult, tasksResult, productsResult, settingsResult].find((result) => result.error);
   if (failed) {
     console.error('No se pudo calcular el panel:', failed.error.message);
     return res.status(500).json({ error: 'No se pudieron cargar los indicadores; revisá que las migraciones estén aplicadas' });
@@ -684,7 +1048,9 @@ app.get('/api/v1/reports/summary', requireAuth, requireRole('administrador'), as
   const confirmedOrders = onlineOrders.filter(order => ['pagado', 'enviado', 'entregado'].includes(order.estado));
   const completedSales = (salesResult.data || []).filter(sale => sale.status === 'completada');
   const pendingOrders = onlineOrders.filter(order => order.estado === 'pendiente');
-  const lowStock = (variantsResult.data || []).filter(variant => variant.stock <= variant.stock_minimo);
+  const globalMinimum = Number(settingsResult.data?.settings?.lowStockThreshold) || 0;
+  const lowStock = (variantsResult.data || []).map((variant) => ({ ...variant, effectiveMinimum: variant.stock_minimo > 0 ? variant.stock_minimo : globalMinimum }))
+    .filter(variant => variant.stock <= variant.effectiveMinimum);
   const projectRows = projectsResult.data || [];
   const taskRows = tasksResult.data || [];
   const today = new Date().toISOString().slice(0, 10);
@@ -713,11 +1079,14 @@ app.get('/api/v1/reports/summary', requireAuth, requireRole('administrador'), as
 
   const onlineRevenue = confirmedOrders.reduce((sum, order) => sum + Number(order.total), 0);
   const posRevenue = completedSales.reduce((sum, sale) => sum + Number(sale.total), 0);
+  const paymentRows = completedSales.flatMap((sale) => sale.sale_payments || []);
+  const cashRevenue = paymentRows.filter((payment) => payment.method === 'efectivo').reduce((sum, payment) => sum + Number(payment.amount), 0);
+  const otherPaymentRevenue = paymentRows.filter((payment) => payment.method !== 'efectivo').reduce((sum, payment) => sum + Number(payment.amount), 0);
   res.json({
     period: { from, to },
-    revenue: { total: onlineRevenue + posRevenue, online: onlineRevenue, inPerson: posRevenue },
-    counts: { confirmedOrders: confirmedOrders.length, pendingOrders: pendingOrders.length, cancelledOrders: onlineOrders.filter(order => order.estado === 'cancelado').length, returnedOrders: onlineOrders.filter(order => order.estado === 'devuelto').length, inPersonSales: completedSales.length },
-    lowStock: lowStock.map(row => ({ variantId: row.id, product: row.products.nombre, size: row.talle, stock: row.stock, minimum: row.stock_minimo })),
+    revenue: { total: onlineRevenue + posRevenue, online: onlineRevenue, inPerson: posRevenue, cash: cashRevenue, otherPayments: otherPaymentRevenue },
+    counts: { confirmedOrders: confirmedOrders.length, pendingOrders: pendingOrders.length, cancelledOrders: onlineOrders.filter(order => order.estado === 'cancelado').length, returnedOrders: onlineOrders.filter(order => order.estado === 'devuelto').length, inPersonSales: completedSales.length, activeProducts: productsResult.count || 0 },
+    lowStock: lowStock.map(row => ({ variantId: row.id, product: row.products.nombre, size: row.talle, stock: row.stock, minimum: row.effectiveMinimum })),
     outOfStock: lowStock.filter(row => row.stock === 0).map(row => ({ variantId: row.id, product: row.products.nombre, size: row.talle })),
     topProducts: [...quantities.entries()].map(([name, quantity]) => ({ name, quantity })).sort((a, b) => b.quantity - a.quantity).slice(0, 10),
     projectsInProgress: projectRows.filter(project => project.status === 'en_curso').length,
@@ -789,7 +1158,7 @@ async function crearPedido(req, res) {
     // Une líneas repetidas del mismo talle para validar el total contra una sola existencia.
     const cantidades = new Map();
     for (const item of items) {
-      const key = `${item.id}:${item.size.trim()}`;
+      const key = item.variantId ? `${item.id}:v:${item.variantId}` : `${item.id}:s:${item.size.trim()}`;
       cantidades.set(key, (cantidades.get(key) || 0) + item.qty);
     }
     if ([...cantidades.values()].some((quantity) => quantity > 10)) {
@@ -809,8 +1178,10 @@ async function crearPedido(req, res) {
     for (const [key, quantity] of cantidades) {
       const separator = key.indexOf(':');
       const productId = Number(key.slice(0, separator));
-      const size = key.slice(separator + 1);
-      const v = variantes.find(x => x.product_id === productId && x.talle === size);
+      const variantKey = key.slice(separator + 1);
+      const variantId = variantKey.startsWith('v:') ? Number(variantKey.slice(2)) : null;
+      const size = variantKey.startsWith('s:') ? variantKey.slice(2) : '';
+      const v = variantes.find(x => x.product_id === productId && (variantId ? x.id === variantId : x.talle === size));
       if (!v || !v.products.activo) {
         return res.status(400).json({ error: 'Un producto del carrito ya no está disponible' });
       }
