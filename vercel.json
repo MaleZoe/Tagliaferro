@@ -1,20 +1,9 @@
 {
   "version": 2,
-  "services": {
-    "frontend": {
-      "root": "frontend",
-      "installCommand": "npm install",
-      "buildCommand": "npm run build",
-      "outputDirectory": "dist"
-    },
-    "backend": {
-      "root": "backend",
-      "installCommand": "npm install",
-      "entrypoint": "server.js"
-    }
-  },
-  "routing": [
-    { "path": "/api/**", "service": "backend" },
-    { "path": "/**", "service": "frontend" }
+  "buildCommand": "cd frontend && npm install && npm run build",
+  "installCommand": "npm install",
+  "outputDirectory": "frontend/dist",
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "/api/index" }
   ]
 }
