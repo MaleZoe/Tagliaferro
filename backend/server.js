@@ -115,14 +115,14 @@ async function listarProductos(req, res) {
   let { data, error } = await supabase
     .from('products')
     .select('id, nombre, descripcion, precio, precio_anterior, badge, imagen_url, sports(slug), product_variants(id, talle, color, stock, activo)')
-    .eq('activo', true')
+    .eq('activo', true)
     .order('id');
 
   if (error && (error.code === '42703' || String(error.message).includes('color') || String(error.message).includes('activo'))) {
     const fallback = await supabase
       .from('products')
       .select('id, nombre, descripcion, precio, precio_anterior, badge, imagen_url, sports(slug), product_variants(id, talle, stock)')
-      .eq('activo', true')
+      .eq('activo', true)
       .order('id');
     data = fallback.data;
     error = fallback.error;
