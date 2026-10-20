@@ -213,7 +213,7 @@ function App() {
       <header className="header" id="header">
         <button className="hamburger" aria-label="Abrir menú" aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(true)}><span /><span /><span /></button>
         <nav className="nav-left" aria-label="Navegación principal"><a href="/#deportes">DEPORTES</a><a href="/#colecciones">COLECCIONES</a><a href="/#novedades">NOVEDADES</a><a href="/#nosotros">NOSOTROS</a></nav>
-        <Link className="logo" to="/" aria-label="Élite Sport, inicio"><img src="/img/logo-elite-sport.png" alt="Élite Sport" /></Link>
+        <Link className="logo" to="/" aria-label="Élite Sport, inicio">ELITE SPORT</Link>
         <div className="nav-right">
           <button className="nav-icon-btn" aria-label="Buscar productos" onClick={() => setSearchOpen(true)}><svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg></button>
           <div className="account-menu-wrap">
