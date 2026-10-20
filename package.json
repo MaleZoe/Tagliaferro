@@ -3,10 +3,17 @@
   "version": "1.0.0",
   "private": true,
   "description": "Punto de entrada de desarrollo para Élite Sport.",
+  "type": "commonjs",
   "scripts": {
     "dev:frontend": "npm --prefix frontend run dev",
     "dev:backend": "npm --prefix backend run dev",
     "build:frontend": "npm --prefix frontend run build",
     "test:backend": "npm --prefix backend test"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.8",
+    "express": "^5.3.0"
   }
 }

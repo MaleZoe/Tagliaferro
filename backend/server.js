@@ -27,8 +27,11 @@ function fechaValida(value) {
 }
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !MP_ACCESS_TOKEN) {
-  console.error('Faltan variables en backend/.env (SUPABASE_URL, SUPABASE_SERVICE_KEY, MP_ACCESS_TOKEN)');
-  process.exit(1);
+  const _msg = 'Faltan variables en backend/.env (SUPABASE_URL, SUPABASE_SERVICE_KEY, MP_ACCESS_TOKEN)';
+  console.error(_msg);
+  // En Vercel process.exit mata el cold-start; solo salimos si es local.
+  if (require.main === module) process.exit(1);
+  else throw new Error(_msg);
 }
 
 const app = express();
@@ -1019,4 +1022,9 @@ app.use((error, req, res, next) => {
     .json({ error: 'Error interno del servidor' });
 });
 
-app.listen(PORT, () => console.log('Backend corriendo en http://localhost:' + PORT));
+// En Vercel la app se importa como serverless function; localmente se levanta con listen.
+if (require.main === module) {
+  app.listen(PORT, () => console.log('Backend corriendo en http://localhost:' + PORT));
+}
+
+module.exports = app;
