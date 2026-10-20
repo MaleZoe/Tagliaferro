@@ -15,3 +15,5 @@ Thumbs.db
 # Temporales de desarrollo
 crop_sports.ps1
 upscale_sports.ps1
+.vercel
+.env*
